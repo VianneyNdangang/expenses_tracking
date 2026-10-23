@@ -1,0 +1,222 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: 'Public Sans', sans-serif;
+
+  --radius: var(--radius);
+  --radius-xs: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+
+  --color-primary-50: #EFFDF5;
+  --color-primary-100: #D9FBE8;
+  --color-primary-200: #B3F5D1;
+  --color-primary-300: #75EDAE;
+  --color-primary-400: #00DC82;
+  --color-primary-500: #00A65A;
+  --color-primary-600: #008746;
+  --color-primary-700: #006835;
+  --color-primary-800: #01522B;
+  --color-primary-900: #044324;
+  --color-primary-950: #022614;
+}
+
+:root,
+:host {
+  --radius: 5px !important;
+  --ui-radius: var(--radius) !important;
+}
+
+/* Styles d'impression A4 pour la lettre d'engagement */
+@media print {
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 18mm 18mm 18mm 18mm;
+  }
+}
+
+/* ========================================================
+   RÈGLE GLOBALE : Tout ce qui est cliquable a cursor-pointer
+   ======================================================== */
+button,
+[role="button"],
+[role="tab"],
+[role="link"],
+[role="menuitem"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+[role="option"],
+a,
+select,
+summary,
+label,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+.cursor-pointer,
+[clickable],
+[data-clickable="true"] {
+  cursor: pointer !important;
+}
+
+/* Curseur désactivé pour éléments inactifs */
+button:disabled,
+button[disabled],
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+.disabled {
+  cursor: not-allowed !important;
+}
+
+/* ========================================================
+   RÈGLE GLOBALE : Les boutons ont une hauteur h-7 (28px / 1.75rem)
+   ======================================================== */
+button,
+[role="button"]:not(.not-btn),
+.u-button {
+  height: 1.75rem;
+  min-height: 1.75rem;
+  max-height: 1.75rem;
+  box-sizing: border-box;
+}
+
+/* Exception pour éléments spécifiques qui nécessitent une hauteur automatique */
+button.h-auto,
+[role="button"].h-auto {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+/* ========================================================
+   RÈGLE GLOBALE : Tous les composants arrondis utilisent --radius
+   ======================================================== */
+[class*="rounded"]:not([class*="rounded-full"]):not([class*="rounded-none"]) {
+  border-radius: var(--radius) !important;
+}
+
+[class*="rounded-t"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-top-left-radius: var(--radius) !important;
+  border-top-right-radius: var(--radius) !important;
+}
+
+[class*="rounded-b"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-bottom-left-radius: var(--radius) !important;
+  border-bottom-right-radius: var(--radius) !important;
+}
+
+[class*="rounded-l"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-top-left-radius: var(--radius) !important;
+  border-bottom-left-radius: var(--radius) !important;
+}
+
+[class*="rounded-r"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-top-right-radius: var(--radius) !important;
+  border-bottom-right-radius: var(--radius) !important;
+}
+
+/* Éléments de formulaire, boutons, modales, tiroirs, popovers, cartes, badges et tableaux */
+.app-card,
+.u-card,
+[data-app-card],
+[data-slot="card"],
+button:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[role="button"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+.u-button:not([class*="rounded-full"]):not([class*="rounded-none"]),
+input:not([type="checkbox"]):not([type="radio"]):not([class*="rounded-full"]):not([class*="rounded-none"]),
+textarea,
+select,
+.u-modal,
+.u-slideover,
+.u-popover,
+.u-dropdown-menu,
+.u-input,
+.u-textarea,
+.u-select,
+.u-select-menu,
+.u-alert,
+.u-badge:not([class*="rounded-full"]),
+.u-table,
+.u-tabs {
+  border-radius: var(--radius) !important;
+}
+
+/* ========================================================
+   RÈGLE GLOBALE : Les padding de toutes les card du projet sont de 3 (0.75rem)
+   ======================================================== */
+.u-card-header,
+.u-card-body,
+.u-card-footer,
+[data-slot="card-header"],
+[data-slot="card-body"],
+[data-slot="card-footer"] {
+  padding: 0.75rem !important;
+}
+
+/* ========================================================
+   RÈGLE GLOBALE : Tous les border du projet sont à 1 (1px)
+   ======================================================== */
+*,
+*::before,
+*::after {
+  --tw-border-width: 1px;
+}
+
+[class*="border"]:not([class*="border-none"]):not([class*="border-0"]):not([class*="border-transparent"]):not([class*="border-collapse"]):not([class*="border-separate"]) {
+  border-width: 1px;
+}
+
+[class*="border-t"]:not([class*="border-t-0"]) {
+  border-top-width: 1px !important;
+}
+
+[class*="border-b"]:not([class*="border-b-0"]) {
+  border-bottom-width: 1px !important;
+}
+
+[class*="border-l"]:not([class*="border-l-0"]) {
+  border-left-width: 1px !important;
+}
+
+[class*="border-r"]:not([class*="border-r-0"]) {
+  border-right-width: 1px !important;
+}
+
+[class*="border-2"],
+[class*="border-3"],
+[class*="border-4"],
+[class*="border-8"] {
+  border-width: 1px !important;
+}

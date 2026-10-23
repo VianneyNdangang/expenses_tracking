@@ -1,0 +1,42 @@
+{
+  "name": "projet_abdouraman",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "seed": "npx tsx server/scripts/seed.ts",
+    "backup": "npx tsx server/scripts/backup.ts",
+    "restore": "npx tsx server/scripts/restore.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.145",
+    "@nuxt/fonts": "^0.10.3",
+    "@nuxt/ui": "^4.12.0",
+    "@types/pdfkit": "^0.17.7",
+    "argon2": "^0.41.1",
+    "html2pdf.js": "^0.14.0",
+    "mongoose": "^8.12.1",
+    "nuxt": "^4.6.2",
+    "otpauth": "^9.3.6",
+    "pdfkit": "^0.20.2",
+    "tailwindcss": "^4.3.3",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.17.0",
+    "@types/node": "^22.13.9",
+    "eslint": "^10.13.0",
+    "mongodb-memory-server": "^10.1.4",
+    "tsx": "^4.19.3",
+    "typescript": "^6.0.3",
+    "vitest": "^3.0.7",
+    "vue-tsc": "^3.3.13"
+  }
+}
