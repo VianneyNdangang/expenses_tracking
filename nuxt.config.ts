@@ -37,6 +37,13 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-06-30',
+
+  nitro: {
+    externals: {
+      external: ['sequelize']
+    }
+  },
+
   typescript: {
     strict: true,
     typeCheck: false

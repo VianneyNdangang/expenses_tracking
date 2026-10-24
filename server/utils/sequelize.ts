@@ -1,4 +1,5 @@
 import { Sequelize } from 'sequelize'
+import mysql2 from 'mysql2'
 
 export const sequelize = new Sequelize(
   process.env.DB_NAME || 'controle_depense',
@@ -6,6 +7,7 @@ export const sequelize = new Sequelize(
   process.env.DB_PASSWORD || '',
   {
     dialect: 'mysql',
+    dialectModule: mysql2,
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),
     logging: false,
