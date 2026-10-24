@@ -15,7 +15,7 @@ useSeoMeta({
 })
 
 const form = reactive({
-  username: 'patron',
+  username: '',
   password: ''
 })
 

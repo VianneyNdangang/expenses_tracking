@@ -50,24 +50,23 @@ export const useAuth = () => {
     }
   })
 
+  // Forward the incoming cookie during SSR so page reloads reuse the session.
+  const requestFetch = useRequestFetch()
+
   const checkAuth = async () => {
-    try {
-      const data = await $fetch<{ authenticated: boolean; user?: AuthUser }>('/api/auth/status')
-      if (data.authenticated && data.user) {
-        user.value = data.user
-      } else {
-        user.value = null
-      }
-    } catch {
+    const data = await requestFetch<{ authenticated: boolean, user?: AuthUser }>('/api/auth/status')
+    if (data.authenticated && data.user) {
+      user.value = data.user
+    } else {
       user.value = null
-    } finally {
-      isLoaded.value = true
     }
+
+    isLoaded.value = true
     return isAuthenticated.value
   }
 
-  const login = async (credentials: { username: string; password: string; totpCode?: string }) => {
-    const data = await $fetch<{ success: boolean; user: AuthUser }>('/api/auth/login', {
+  const login = async (credentials: { username: string, password: string, totpCode?: string }) => {
+    const data = await $fetch<{ success: boolean, user: AuthUser }>('/api/auth/login', {
       method: 'POST',
       body: credentials
     })
