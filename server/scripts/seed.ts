@@ -20,61 +20,30 @@ async function runSeed() {
   console.log('🌱 Démarrage du script de seed...')
   await connectToDatabase()
 
-  // 1. Initialisation des 3 rôles obligatoires (Patron, Secrétaire, Technicien)
-  const defaultPassword = process.env.PATRON_INITIAL_PASSWORD || 'Patron@2026!'
+  // 1. Create the patron account only when an initial password was provided.
+  const initialPassword = process.env.PATRON_INITIAL_PASSWORD
   const existingPatron = await User.findOne({ username: 'patron' })
-  let patronUser = existingPatron
 
   if (!existingPatron) {
-    const passwordHash = await hashPassword(defaultPassword)
-    patronUser = await User.create({
+    if (!initialPassword || initialPassword.length < 12) {
+      throw new Error('Définissez PATRON_INITIAL_PASSWORD avec au moins 12 caractères dans .env.')
+    }
+
+    const passwordHash = await hashPassword(initialPassword)
+    await User.create({
       username: 'patron',
       name: 'M. Abdouraman',
       role: 'PATRON',
       passwordHash,
       failedLoginAttempts: 0
     })
-    console.log(`✅ Compte patron créé : identifiant "patron", mot de passe "${defaultPassword}"`)
+    console.log('✅ Compte patron créé.')
   } else {
     if (!existingPatron.role) {
       existingPatron.role = 'PATRON'
       await existingPatron.save()
     }
     console.log('ℹ️ Compte patron déjà existant (rôle PATRON validé).')
-  }
-
-  // Secrétaire
-  const existingSecretaire = await User.findOne({ username: 'secretaire' })
-  if (!existingSecretaire) {
-    const secPass = 'Secretaire@2026!'
-    const secHash = await hashPassword(secPass)
-    await User.create({
-      username: 'secretaire',
-      name: 'Mme Ngo Biboum (Secrétaire)',
-      role: 'SECRETAIRE',
-      passwordHash: secHash,
-      failedLoginAttempts: 0
-    })
-    console.log(`✅ Compte secrétaire créé : identifiant "secretaire", mot de passe "${secPass}"`)
-  } else {
-    console.log('ℹ️ Compte secrétaire déjà existant.')
-  }
-
-  // Technicien
-  const existingTechnicien = await User.findOne({ username: 'technicien' })
-  if (!existingTechnicien) {
-    const techPass = 'Technicien@2026!'
-    const techHash = await hashPassword(techPass)
-    await User.create({
-      username: 'technicien',
-      name: 'M. Kamga Jean (Technicien)',
-      role: 'TECHNICIEN',
-      passwordHash: techHash,
-      failedLoginAttempts: 0
-    })
-    console.log(`✅ Compte technicien créé : identifiant "technicien", mot de passe "${techPass}"`)
-  } else {
-    console.log('ℹ️ Compte technicien déjà existant.')
   }
 
   // 2. Paramètres généraux

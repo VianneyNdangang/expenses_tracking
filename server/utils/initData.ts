@@ -9,7 +9,7 @@ import { Commitment } from '../models/Commitment'
 import { Payment } from '../models/Payment'
 import { Justification } from '../models/Justification'
 import { Counter } from '../models/Counter'
-import { hashPassword, encryptField } from './crypto'
+import { encryptField } from './crypto'
 import { evaluatePriceDifference } from '../../shared/priceComparison'
 
 let isSeeding = false
@@ -19,44 +19,11 @@ export async function ensureInitialData() {
   isSeeding = true
 
   try {
-    // 1. Initialisation des 3 rôles obligatoires : Patron, Secrétaire, Technicien
+    // 1. Promote an existing patron account if its role was not set.
     const existingPatron = await User.findOne({ username: 'patron' })
-    if (!existingPatron) {
-      const passwordHash = await hashPassword('Patron@2026!')
-      await User.create({
-        username: 'patron',
-        name: 'M. Abdouraman',
-        role: 'PATRON',
-        passwordHash,
-        failedLoginAttempts: 0
-      })
-    } else if (!existingPatron.role) {
+    if (existingPatron && !existingPatron.role) {
       existingPatron.role = 'PATRON'
       await existingPatron.save()
-    }
-
-    const existingSecretaire = await User.findOne({ username: 'secretaire' })
-    if (!existingSecretaire) {
-      const passwordHash = await hashPassword('Secretaire@2026!')
-      await User.create({
-        username: 'secretaire',
-        name: 'Mme Ngo Biboum (Secrétaire)',
-        role: 'SECRETAIRE',
-        passwordHash,
-        failedLoginAttempts: 0
-      })
-    }
-
-    const existingTechnicien = await User.findOne({ username: 'technicien' })
-    if (!existingTechnicien) {
-      const passwordHash = await hashPassword('Technicien@2026!')
-      await User.create({
-        username: 'technicien',
-        name: 'M. Kamga Jean (Technicien)',
-        role: 'TECHNICIEN',
-        passwordHash,
-        failedLoginAttempts: 0
-      })
     }
 
     const settingsCount = await Settings.countDocuments()

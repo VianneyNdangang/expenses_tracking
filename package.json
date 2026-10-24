@@ -2,13 +2,18 @@
   "name": "projet_abdouraman",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^22.21.0 || ^24.11.0 || >=26.0.0"
+  },
   "scripts": {
     "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
+    "db:migrate": "npx tsx server/scripts/migrate.ts",
     "seed": "npx tsx server/scripts/seed.ts",
     "backup": "npx tsx server/scripts/backup.ts",
     "restore": "npx tsx server/scripts/restore.ts",

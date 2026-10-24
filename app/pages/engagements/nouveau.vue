@@ -2,7 +2,7 @@
 import { evaluatePriceDifference, type PriceComparisonResult } from '~~/shared/priceComparison'
 import { amountInWordsFCFA, formatFCFA } from '~~/shared/currency'
 import { CreateCommitmentSchema, validateForm, type CommitmentType } from '~~/shared/schemas'
-import {AppButton} from '@components.AppButton'
+import AppButton from '~/components/AppButton.vue'
 
 useHead({
   title: 'Nouvel Engagement'

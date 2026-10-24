@@ -48,7 +48,7 @@ L'application respecte les principes de sécurité les plus stricts :
 
 ## 📋 Prérequis
 
-- **Node.js** : version 20.x ou supérieure (Node 22 recommandé)
+- **Node.js** : `^22.21.0`, `^24.11.0` ou `>=26.0.0` (Node 25 n'est pas pris en charge par Nuxt)
 - **Gestionnaire de paquets** : **`npm`** *(utilisation stricte de npm)*
 - **MySQL 8.0+** (installation locale ou conteneur Docker Compose fourni)
 
@@ -82,7 +82,7 @@ SESSION_SECRET=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
 NODE_ENV=development
 ```
 
-> La base MySQL doit être démarrée avant le serveur. Au premier démarrage, l'application crée ses tables et initialise les données de référence. Les données MongoDB existantes ne sont pas transférées.
+> La base MySQL doit être démarrée avant le serveur. Les données MongoDB existantes ne sont pas transférées. Définissez `PATRON_INITIAL_PASSWORD` dans `.env` avec un mot de passe d'au moins 12 caractères, puis exécutez `npm run db:migrate` pour créer les tables manquantes et le compte patron.
 
 ### 3. Démarrer MySQL avec Docker
 Le fichier Compose démarre MySQL et conserve les données dans un volume Docker :
@@ -98,11 +98,9 @@ L'application est accessible à l'adresse : **[http://localhost:3000](http://loc
 
 ---
 
-## 🔑 Compte d'accès Patron par défaut
+## 🔑 Compte d'accès Patron
 
-Lors du premier lancement ou après exécution du script de seed :
-- **Identifiant** : `patron`
-- **Mot de passe** : `Patron@2026!` *(personnalisable dans les paramètres de l'application)*
+La commande `npm run db:migrate` crée le compte initial avec l'identifiant `patron`. Le mot de passe est celui défini localement dans `PATRON_INITIAL_PASSWORD` et n'est ni codé dans le dépôt ni affiché dans les logs. Le script ne réinitialise pas le mot de passe d'un compte existant.
 
 ---
 
@@ -112,11 +110,15 @@ Lors du premier lancement ou après exécution du script de seed :
 |---|---|
 | `npm run dev` | Lance le serveur Nuxt en mode développement avec rechargement à chaud |
 | `npm run build` | Compile l'application pour la production (`.output/`) |
+| `npm run start` | Démarre le serveur Nitro compilé (`.output/server/index.mjs`) |
 | `npm run preview` | Prévisualise la version de production compilée |
 | `npm run test` | Exécute la suite complète des 24 tests Vitest (unitaires + cycle E2E) |
+| `npm run db:migrate` | Crée les tables manquantes et le compte patron initial |
 | `npm run seed` | Réinitialise et alimente la base de données avec des données de référence complètes |
 | `npm run backup` | Exporte les tables MySQL dans un fichier JSON horodaté (`backups/`) |
 | `npm run restore` | Restaure la dernière sauvegarde JSON MySQL (ou via `--file <chemin>`) |
+
+En production, configurez `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SESSION_SECRET` et `FIELD_ENCRYPTION_KEY` dans le gestionnaire de secrets de l'hébergeur. Après `npm ci` et `npm run build`, démarrez l'application avec `npm run start`. N'utilisez pas les valeurs d'exemple pour les secrets.
 
 ---
 
