@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatFCFA } from '~~/shared/currency'
 import type { DataTableColumn } from '~/components/AppDataTable.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Liste des Engagements'
@@ -9,6 +10,8 @@ useHead({
 const route = useRoute()
 const router = useRouter()
 const { downloadingId, downloadCommitmentPdf } = usePdfDownload()
+const { download: downloadApiFile } = useApiFile()
+const requestToast = useRequestToast()
 
 // Filtres réactifs
 const filters = reactive({
@@ -30,11 +33,35 @@ watch(
   }
 )
 
-const { data: workers } = await useFetch('/api/workers')
+const { data: workers } = await useApiData<ApiGetResponse<'/api/workers'>>('/api/workers', { key: 'engagement-workers' })
+const typeOptions = [
+  { label: 'Toutes natures', value: 'all' },
+  { label: 'Matériel', value: 'MATERIEL' },
+  { label: 'Prêt d’argent', value: 'PRET' },
+  { label: 'Salaire', value: 'SALAIRE' },
+  { label: 'Autre dépense', value: 'AUTRE' }
+]
+const statusOptions = [
+  { label: 'Tous les statuts', value: 'all' },
+  { label: 'Demandé', value: 'Demandé' },
+  { label: 'Accepté', value: 'Accepté' },
+  { label: 'Payé', value: 'Payé' },
+  { label: 'Justifié', value: 'Justifié' },
+  { label: 'Refusé', value: 'Refusé' },
+  { label: 'Annulé', value: 'Annulé' }
+]
+const workerOptions = computed(() => [
+  { label: 'Tous les employés', value: '' },
+  ...(workers.value || []).map(worker => ({
+    label: `${worker.civility} ${worker.fullName}`,
+    value: worker.id
+  }))
+])
 
-const { data: commitments, pending, refresh } = await useFetch('/api/commitments', {
-  query: filters,
-  watch: [filters]
+const { data: commitments, pending } = await useApiData<ApiGetResponse<'/api/commitments'>>('/api/commitments', {
+  key: 'commitments',
+  params: () => ({ ...filters }),
+  watch: [() => ({ ...filters })]
 })
 
 const columns: DataTableColumn[] = [
@@ -73,6 +100,22 @@ const exportUrl = (format: 'excel' | 'csv') => {
   if (filters.endDate) params.set('endDate', filters.endDate)
   return `/api/exports/commitments?${params.toString()}`
 }
+
+const downloadExport = async (format: 'excel' | 'csv') => {
+  try {
+    await downloadApiFile(
+      exportUrl(format),
+      `engagements.${format === 'excel' ? 'xlsx' : 'csv'}`
+    )
+  } catch (error: unknown) {
+    const message = error && typeof error === 'object' && 'data' in error
+      && error.data && typeof error.data === 'object' && 'statusMessage' in error.data
+      && typeof error.data.statusMessage === 'string'
+      ? error.data.statusMessage
+      : error instanceof Error ? error.message : 'Impossible de télécharger l’export.'
+    requestToast.error(message)
+  }
+}
 </script>
 
 <template>
@@ -90,21 +133,19 @@ const exportUrl = (format: 'excel' | 'csv') => {
 
       <div class="flex items-center gap-2">
         <AppButton
-          :href="exportUrl('excel')"
-          target="_blank"
           variant="outline"
           size="xs"
           icon="i-lucide-file-spreadsheet"
           label="Excel"
+          @click="downloadExport('excel')"
         />
 
         <AppButton
-          :href="exportUrl('csv')"
-          target="_blank"
           variant="outline"
           size="xs"
           icon="i-lucide-download"
           label="CSV"
+          @click="downloadExport('csv')"
         />
 
         <AppButton
@@ -137,56 +178,25 @@ const exportUrl = (format: 'excel' | 'csv') => {
           </div>
 
           <!-- Filtre Nature / Type -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Nature
-            </label>
-            <select
-              v-model="filters.type"
-              class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-            >
-              <option value="all">Toutes natures</option>
-              <option value="MATERIEL">Matériel</option>
-              <option value="PRET">Prêt d'argent</option>
-              <option value="SALAIRE">Salaire</option>
-              <option value="AUTRE">Autre dépense</option>
-            </select>
-          </div>
+          <AppSelect
+            v-model="filters.type"
+            label="Nature"
+            :items="typeOptions"
+          />
 
           <!-- Filtre Statut -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Statut
-            </label>
-            <select
-              v-model="filters.status"
-              class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="Demandé">Demandé</option>
-              <option value="Accepté">Accepté</option>
-              <option value="Payé">Payé</option>
-              <option value="Justifié">Justifié</option>
-              <option value="Refusé">Refusé</option>
-              <option value="Annulé">Annulé</option>
-            </select>
-          </div>
+          <AppSelect
+            v-model="filters.status"
+            label="Statut"
+            :items="statusOptions"
+          />
 
           <!-- Filtre Employé -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Employé
-            </label>
-            <select
-              v-model="filters.workerId"
-              class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-            >
-              <option value="">Tous les employés</option>
-              <option v-for="w in workers" :key="w.id" :value="w.id">
-                {{ w.civility }} {{ w.fullName }}
-              </option>
-            </select>
-          </div>
+          <AppSelect
+            v-model="filters.workerId"
+            label="Employé"
+            :items="workerOptions"
+          />
         </div>
 
         <!-- Période de dates et bouton réinitialiser -->
@@ -244,10 +254,10 @@ const exportUrl = (format: 'excel' | 'csv') => {
             row.type === 'PRET'
               ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
               : row.type === 'SALAIRE'
-              ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-              : row.type === 'AUTRE'
-              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                : row.type === 'AUTRE'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           ]"
         >
           {{ row.type === 'PRET' ? 'Prêt' : row.type === 'SALAIRE' ? 'Salaire' : row.type === 'AUTRE' ? 'Autre' : 'Matériel' }}

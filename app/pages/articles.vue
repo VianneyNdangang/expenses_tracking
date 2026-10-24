@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatFCFA } from '~~/shared/currency'
 import type { DataTableColumn } from '../components/AppDataTable.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 import ArticleFormModal from '~/components/modals/articles/ArticleFormModal.vue'
 import ArticlePriceModal from '~/components/modals/articles/ArticlePriceModal.vue'
 import ArticleHistoryModal from '~/components/modals/articles/ArticleHistoryModal.vue'
@@ -12,8 +13,10 @@ useHead({
 
 const includeArchived = ref(false)
 
-const { data: items, pending, refresh } = await useFetch('/api/items', {
-  query: { includeArchived }
+const { data: items, pending, refresh } = await useApiData<ApiGetResponse<'/api/items'>>('/api/items', {
+  key: 'items',
+  params: () => ({ includeArchived: includeArchived.value }),
+  watch: [includeArchived]
 })
 
 const columns: DataTableColumn[] = [

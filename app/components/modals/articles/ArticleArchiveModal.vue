@@ -9,6 +9,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   item: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -36,14 +37,12 @@ const confirmArchive = async () => {
   const willArchive = !props.item.isArchived
 
   try {
-    await $fetch(`/api/items/${props.item.id}/archive`, {
-      method: 'PATCH',
-      body: { isArchived: willArchive }
-    })
+    await useApi().patch(`/api/items/${props.item.id}/archive`, { isArchived: willArchive })
     isOpen.value = false
+    requestToast.success(willArchive ? 'Article archivé.' : 'Article restauré.')
     emit('archived')
   } catch (err: any) {
-    archiveError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’opération'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’opération')
   } finally {
     archiveLoading.value = false
   }

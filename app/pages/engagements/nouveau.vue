@@ -3,19 +3,30 @@ import { evaluatePriceDifference, type PriceComparisonResult } from '~~/shared/p
 import { amountInWordsFCFA, formatFCFA } from '~~/shared/currency'
 import { CreateCommitmentSchema, validateForm, type CommitmentType } from '~~/shared/schemas'
 import AppButton from '~/components/AppButton.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Nouvel Engagement'
 })
 
 const router = useRouter()
+const requestToast = useRequestToast()
 
 // Données référentielles
-const { data: workers } = await useFetch('/api/workers')
-const { data: witnesses } = await useFetch('/api/witnesses')
-const { data: items } = await useFetch('/api/items')
-const { data: settings } = await useFetch('/api/settings')
-const { data: templateData } = await useFetch('/api/template')
+const { data: workers } = await useApiData<ApiGetResponse<'/api/workers'>>('/api/workers', { key: 'new-commitment-workers' })
+const { data: witnesses } = await useApiData<ApiGetResponse<'/api/witnesses'>>('/api/witnesses', { key: 'new-commitment-witnesses' })
+const { data: items } = await useApiData<ApiGetResponse<'/api/items'>>('/api/items', { key: 'new-commitment-items' })
+const { data: settings } = await useApiData<ApiGetResponse<'/api/settings'>>('/api/settings', { key: 'new-commitment-settings' })
+const { data: templateData } = await useApiData<ApiGetResponse<'/api/template'>>('/api/template', { key: 'new-commitment-template' })
+
+const workerOptions = computed(() => (workers.value || []).map(worker => ({
+  label: `${worker.civility} ${worker.fullName} (CNI : ${worker.cniMasked})`,
+  value: worker.id
+})))
+const itemOptions = computed(() => (items.value || []).map(item => ({
+  label: `${item.name} (Réf: ${formatFCFA(item.referencePrice)} / ${item.unit})`,
+  value: item.id
+})))
 
 const selectedTemplateVersion = ref<number | undefined>(undefined)
 watch(
@@ -152,6 +163,8 @@ const selectType = (t: CommitmentType) => {
 // Sélection d'un article existant
 const onSelectItem = (lineIndex: number, itemId: string) => {
   const line = lines.value[lineIndex]
+  if (!line) return
+
   const selected = items.value?.find((it: any) => it.id === itemId)
   if (selected) {
     line.itemId = selected.id
@@ -249,14 +262,12 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const res = await $fetch<{ success: boolean; commitment: { id: string } }>('/api/commitments', {
-      method: 'POST',
-      body: validation.data
-    })
+    const response = await useApi().post<{ success: boolean; commitment: { id: string } }>('/api/commitments', validation.data)
 
-    await router.push(`/engagements/${res.commitment.id}`)
+    requestToast.success('Engagement créé.')
+    await router.push(`/engagements/${response.data.commitment.id}`)
   } catch (err: any) {
-    errorMessage.value = err.data?.statusMessage || err.message || 'Erreur lors de la création de l’engagement'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la création de l’engagement')
   } finally {
     loading.value = false
   }
@@ -299,10 +310,13 @@ const handleSubmit = async () => {
         body-class="space-y-3"
       >
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
+          <AppButton
             v-for="ct in commitmentTypes"
             :key="ct.type"
             type="button"
+            height="auto"
+            variant="ghost"
+            :aria-pressed="form.type === ct.type"
             class=" flex p-3.5 rounded-lg border text-left transition-all relative flex flex-col justify-between cursor-pointer"
             :class="[
               form.type === ct.type
@@ -330,7 +344,7 @@ const handleSubmit = async () => {
                 {{ ct.description }}
               </p>
             </div>
-          </button>
+          </AppButton>
         </div>
       </AppCard>
 
@@ -343,23 +357,14 @@ const handleSubmit = async () => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <!-- Sélection Employé -->
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Employé / Bénéficiaire <span class="text-red-500">*</span>
-            </label>
-            <select
+            <AppSelect
               v-model="form.workerId"
+              label="Employé / Bénéficiaire"
+              placeholder="Sélectionner un employé..."
+              :items="workerOptions"
+              :error="formErrors.workerId"
               required
-              class="w-full px-3 py-2.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.workerId }"
-            >
-              <option value="" disabled>Sélectionner un employé...</option>
-              <option v-for="w in workers" :key="w.id" :value="w.id">
-                {{ w.civility }} {{ w.fullName }} (CNI : {{ w.cniMasked }})
-              </option>
-            </select>
-            <p v-if="formErrors.workerId" class="text-xs text-red-500 mt-1 font-medium">
-              {{ formErrors.workerId }}
-            </p>
+            />
           </div>
 
           <!-- Ville et Date -->
@@ -486,22 +491,16 @@ const handleSubmit = async () => {
       >
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Montant demandé (en FCFA) <span class="text-red-500">*</span>
-            </label>
-            <input
+            <AppInput
               v-model.number="form.directAmount"
               type="number"
+              label="Montant demandé (en FCFA)"
               step="1"
               min="1"
               required
               placeholder="Ex : 250000"
-              class="w-full px-3.5 py-2.5 text-base rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.amount }"
+              :error="formErrors.amount"
             />
-            <p v-if="formErrors.amount" class="text-xs text-red-500 mt-1 font-medium">
-              {{ formErrors.amount }}
-            </p>
           </div>
 
           <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -587,58 +586,40 @@ const handleSubmit = async () => {
                 <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Article de référence
                 </label>
-                <select
-                  :value="line.itemId"
-                  class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                  :class="{ 'border-red-500 focus:ring-red-500': formErrors[`lines.${index}.itemId`] }"
-                  @change="(e: any) => onSelectItem(index, e.target.value)"
-                >
-                  <option value="" disabled>Choisir un article...</option>
-                  <option v-for="it in items" :key="it.id" :value="it.id">
-                    {{ it.name }} (Réf: {{ formatFCFA(it.referencePrice) }} / {{ it.unit }})
-                  </option>
-                </select>
-                <p v-if="formErrors[`lines.${index}.itemId`]" class="text-[11px] text-red-500 mt-1 font-medium">
-                  {{ formErrors[`lines.${index}.itemId`] }}
-                </p>
+                <AppSelect
+                  :model-value="line.itemId"
+                  label="Article de référence"
+                  placeholder="Choisir un article..."
+                  :items="itemOptions"
+                  :error="formErrors[`lines.${index}.itemId`]"
+                  @update:model-value="onSelectItem(index, $event)"
+                />
               </div>
 
               <!-- Quantité -->
               <div class="sm:col-span-2">
-                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Quantité ({{ line.unit || 'Unité' }})
-                </label>
-                <input
+                <AppInput
                   v-model.number="line.quantity"
                   type="number"
-                  step="any"
+                  :label="`Quantité (${line.unit || 'Unité'})`"
+                  step="0.1"
                   min="0.1"
                   required
-                  class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  :class="{ 'border-red-500 focus:ring-red-500': formErrors[`lines.${index}.quantity`] }"
+                  :error="formErrors[`lines.${index}.quantity`]"
                 />
-                <p v-if="formErrors[`lines.${index}.quantity`]" class="text-[11px] text-red-500 mt-1 font-medium">
-                  {{ formErrors[`lines.${index}.quantity`] }}
-                </p>
               </div>
 
               <!-- Prix Unitaire Déclaré -->
               <div class="sm:col-span-3">
-                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  Prix Unit. Déclaré (FCFA)
-                </label>
-                <input
+                <AppInput
                   v-model.number="line.unitPriceDeclared"
                   type="number"
+                  label="Prix Unit. Déclaré (FCFA)"
                   step="1"
                   min="1"
                   required
-                  class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  :class="{ 'border-red-500 focus:ring-red-500': formErrors[`lines.${index}.unitPriceDeclared`] }"
+                  :error="formErrors[`lines.${index}.unitPriceDeclared`]"
                 />
-                <p v-if="formErrors[`lines.${index}.unitPriceDeclared`]" class="text-[11px] text-red-500 mt-1 font-medium">
-                  {{ formErrors[`lines.${index}.unitPriceDeclared`] }}
-                </p>
               </div>
 
               <!-- Total Ligne -->

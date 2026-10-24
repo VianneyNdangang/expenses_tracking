@@ -2,6 +2,7 @@
 import type { DataTableColumn } from '../components/AppDataTable.vue'
 import WorkerFormModal from '~/components/modals/workers/WorkerFormModal.vue'
 import WorkerArchiveModal from '~/components/modals/workers/WorkerArchiveModal.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Gestion des Employés'
@@ -9,8 +10,10 @@ useHead({
 
 const includeArchived = ref(false)
 
-const { data: workers, pending, refresh } = await useFetch('/api/workers', {
-  query: { includeArchived }
+const { data: workers, pending, refresh } = await useApiData<ApiGetResponse<'/api/workers'>>('/api/workers', {
+  key: 'workers',
+  params: () => ({ includeArchived: includeArchived.value }),
+  watch: [includeArchived]
 })
 
 const columns: DataTableColumn[] = [

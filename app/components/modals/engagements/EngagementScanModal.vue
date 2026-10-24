@@ -5,10 +5,22 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const requestToast = useRequestToast()
+
+const getErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = error.data
+    if (data && typeof data === 'object' && 'statusMessage' in data && typeof data.statusMessage === 'string') {
+      return data.statusMessage
+    }
+  }
+  if (error instanceof Error && error.message) return error.message
+  return 'Erreur lors de la lecture ou de l’enregistrement du fichier.'
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  uploaded: []
+  'uploaded': []
 }>()
 
 const isOpen = computed({
@@ -18,51 +30,52 @@ const isOpen = computed({
 
 const scanFile = ref<File | null>(null)
 const actionLoading = ref(false)
-const actionError = ref('')
 
 watch(() => props.modelValue, (val) => {
   if (val) {
     scanFile.value = null
-    actionError.value = ''
   }
 })
 
-const onFileSelected = (e: any) => {
-  const file = e.target.files?.[0]
-  if (file) {
-    scanFile.value = file
-  }
+const onFileSelected = (event: Event) => {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) return
+  const file = target.files?.[0]
+  scanFile.value = file || null
 }
 
 const submitScan = async () => {
-  if (!scanFile.value) return
+  const file = scanFile.value
+  if (!file) return
+  if (file.size > 20 * 1024 * 1024) {
+    requestToast.error('Le fichier doit peser moins de 20 Mo.')
+    return
+  }
+
   actionLoading.value = true
-  actionError.value = ''
 
   try {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string
-      try {
-        await $fetch(`/api/commitments/${props.commitmentId}/upload-scan`, {
-          method: 'POST',
-          body: {
-            filename: scanFile.value!.name,
-            base64
-          }
-        })
-        isOpen.value = false
-        scanFile.value = null
-        emit('uploaded')
-      } catch (uploadErr: any) {
-        actionError.value = uploadErr.data?.statusMessage || uploadErr.message || 'Erreur lors du téléversement du scan'
-      } finally {
-        actionLoading.value = false
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === 'string') resolve(reader.result)
+        else reject(new Error('Impossible de lire le fichier sélectionné.'))
       }
-    }
-    reader.readAsDataURL(scanFile.value)
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de la lecture du fichier'
+      reader.onerror = () => reject(reader.error || new Error('Impossible de lire le fichier sélectionné.'))
+      reader.readAsDataURL(file)
+    })
+
+    await useApi().post(`/api/commitments/${props.commitmentId}/upload-scan`, {
+      filename: file.name,
+      base64
+    })
+    isOpen.value = false
+    scanFile.value = null
+    requestToast.success('Scan signé ajouté à l’engagement.')
+    emit('uploaded')
+  } catch (error: unknown) {
+    requestToast.error(getErrorMessage(error))
+  } finally {
     actionLoading.value = false
   }
 }
@@ -72,24 +85,20 @@ const submitScan = async () => {
   <AppModal
     v-model="isOpen"
     title="Joindre le scan de la lettre signée"
-    description="Sélectionnez le document PDF ou l'image contresignée par l'employé, le patron et les témoins."
+    description="Sélectionnez le PDF, JPG, PNG ou WEBP de la lettre signée par l'employé, le patron et les témoins (20 Mo maximum)."
     icon="i-lucide-upload"
     confirm-label="Enregistrer le scan"
     :confirm-disabled="!scanFile"
     :confirm-loading="actionLoading"
     @confirm="submitScan"
   >
-    <div v-if="actionError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-      {{ actionError }}
-    </div>
-
     <div>
       <input
         type="file"
-        accept="application/pdf,image/*"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
         class="w-full text-xs"
         @change="onFileSelected"
-      />
+      >
     </div>
   </AppModal>
 </template>

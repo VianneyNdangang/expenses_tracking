@@ -5,14 +5,38 @@ import EngagementPaymentModal from '~/components/modals/engagements/EngagementPa
 import EngagementJustificationModal from '~/components/modals/engagements/EngagementJustificationModal.vue'
 import EngagementScanModal from '~/components/modals/engagements/EngagementScanModal.vue'
 import EngagementCancelModal from '~/components/modals/engagements/EngagementCancelModal.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 const route = useRoute()
 const commitmentId = route.params.id as string
 
-const { data: commitment, refresh } = await useFetch(`/api/commitments/${commitmentId}`)
+const { data: commitment, refresh } = await useApiData<ApiGetResponse<'/api/commitments/:id'>>(computed(() => `/api/commitments/${route.params.id}`), {
+  key: 'commitment-detail'
+})
 
 const { downloadingId, downloadCommitmentPdf } = usePdfDownload()
-const { isPatron } = useAuth()
+const apiFile = useApiFile()
+const requestToast = useRequestToast()
+const { isPatron, isSecretaire } = useAuth()
+const canManageSignedScan = computed(() => isPatron.value || isSecretaire.value)
+const signedScanUrl = computed(() => `/api/commitments/${commitmentId}/signed-letter-scan`)
+const openSignedScan = async () => {
+  try {
+    await apiFile.open(signedScanUrl.value)
+  } catch (error: unknown) {
+    requestToast.error(error instanceof Error ? error.message : 'Impossible d’ouvrir le scan signé.')
+  }
+}
+const downloadSignedScan = async () => {
+  try {
+    await apiFile.download(
+      signedScanUrl.value,
+      commitment.value?.signedLetterScanFilename || 'scan-lettre-signee'
+    )
+  } catch (error: unknown) {
+    requestToast.error(error instanceof Error ? error.message : 'Impossible de télécharger le scan signé.')
+  }
+}
 
 useHead({
   title: computed(() => commitment.value ? `${commitment.value.letterNumber} - Détail` : 'Détail Engagement')
@@ -159,16 +183,18 @@ const getLineStatusBadge = (status: string) => {
           </div>
         </template>
 
-        <!-- Actions si Payé : Enregistrer Justification & Scan -->
-        <template v-if="commitment.status === 'Payé' && !commitment.isCancelled">
-          <AppButton
-            variant="outline"
-            size="xs"
-            icon="i-lucide-upload"
-            :label="commitment.signedLetterScanUrl ? 'Modifier le Scan' : 'Joindre Scan Signé'"
-            @click="isScanModalOpen = true"
-          />
+        <!-- Action : joindre la lettre signée dès acceptation -->
+        <AppButton
+          v-if="canManageSignedScan && ['Accepté', 'Payé', 'Justifié'].includes(commitment.status) && !commitment.isCancelled"
+          variant="outline"
+          size="xs"
+          icon="i-lucide-upload"
+          :label="commitment.signedLetterScanUrl ? 'Remplacer le scan signé' : 'Joindre la lettre signée'"
+          @click="isScanModalOpen = true"
+        />
 
+        <!-- Action si Payé : Enregistrer la justification -->
+        <template v-if="commitment.status === 'Payé' && !commitment.isCancelled">
           <AppButton
             variant="primary"
             size="xs"
@@ -585,7 +611,7 @@ const getLineStatusBadge = (status: string) => {
 
     <!-- Scan de la lettre signée -->
     <AppCard
-      v-if="commitment.signedLetterScanUrl"
+      v-if="commitment.signedLetterScanUrl && canManageSignedScan"
       title="Scan de la lettre signée"
       icon="i-lucide-file-check"
       body-class="space-y-2"
@@ -597,14 +623,24 @@ const getLineStatusBadge = (status: string) => {
             {{ commitment.signedLetterScanFilename || 'Document scanné' }}
           </span>
         </div>
-        <a
-          :href="commitment.signedLetterScanUrl"
-          target="_blank"
-          download
-          class="font-semibold text-emerald-600 hover:text-emerald-700"
-        >
-          Télécharger le document →
-        </a>
+        <div class="flex items-center gap-2">
+          <AppButton
+            variant="outline"
+            size="xs"
+            icon="i-lucide-eye"
+            label="Lire"
+            title="Ouvrir le scan signé"
+            @click="openSignedScan"
+          />
+          <AppButton
+            variant="primary"
+            size="xs"
+            icon="i-lucide-download"
+            label="Télécharger"
+            title="Télécharger le scan signé"
+            @click="downloadSignedScan"
+          />
+        </div>
       </div>
     </AppCard>
 

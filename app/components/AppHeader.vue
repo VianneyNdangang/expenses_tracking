@@ -25,7 +25,7 @@ const { user, roleLabel, roleBadgeColor, isPatron, isSecretaire } = useAuth()
       <!-- Titre Mobile -->
       <div class="lg:hidden flex items-center gap-2">
         <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-          Contrôle Dépenses
+          Grand Luix SARL
         </span>
       </div>
 

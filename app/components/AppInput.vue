@@ -33,10 +33,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: any]
-  change: [event: Event]
-  enter: [event: KeyboardEvent]
-  clear: []
+  'update:modelValue': [value: string | number | null]
+  'change': [event: Event]
+  'enter': [event: KeyboardEvent]
+  'clear': []
 }>()
 
 // État pour afficher/masquer le mot de passe
@@ -58,13 +58,8 @@ const computedIcon = computed(() => {
   return undefined
 })
 
-const onInput = (value: any) => {
-  if (props.type === 'number') {
-    const num = value === '' || value === null || value === undefined ? '' : Number(value)
-    emit('update:modelValue', num)
-  } else {
-    emit('update:modelValue', value)
-  }
+const onInput = (value: string | number | null) => {
+  emit('update:modelValue', value)
 }
 
 const handleClear = () => {
@@ -80,7 +75,7 @@ const handleClear = () => {
     :help="help"
     :error="error"
     :required="required"
-    :size="size"
+    size="sm"
     class="w-full"
   >
     <!-- Cas Textarea -->
@@ -91,59 +86,80 @@ const handleClear = () => {
       :rows="rows"
       :disabled="disabled"
       :readonly="readonly"
-      :size="size"
+      size="sm"
       :autofocus="autofocus"
       class="w-full font-sans"
       @update:model-value="onInput"
       @change="$emit('change', $event)"
     />
 
+    <UInputNumber
+      v-else-if="type === 'number'"
+      :model-value="typeof modelValue === 'number' ? modelValue : null"
+      :placeholder="placeholder"
+      :disabled="disabled"
+      :readonly="readonly"
+      :required="required"
+      :min="min === undefined ? undefined : Number(min)"
+      :max="max === undefined ? undefined : Number(max)"
+      :step="step === undefined ? 1 : Number(step)"
+      size="sm"
+      :autofocus="autofocus"
+      class="w-full h-8 min-h-8 font-sans"
+      :ui="{ root: 'w-full h-8 min-h-8', base: 'h-8 min-h-8 text-xs' }"
+      @update:model-value="emit('update:modelValue', $event ?? '')"
+      @change="$emit('change', $event)"
+      @keydown.enter="$emit('enter', $event)"
+    />
+
     <!-- Cas Input standard ou spécialisé -->
     <UInput
       v-else
-      :model-value="modelValue"
+      :model-value="modelValue ?? undefined"
       :type="computedType"
       :placeholder="placeholder"
       :icon="computedIcon"
       :trailing-icon="trailingIcon"
       :disabled="disabled"
       :readonly="readonly"
-      :size="size"
+      size="sm"
       :min="min"
       :max="max"
       :step="step"
       :autofocus="autofocus"
-      class="w-full font-sans"
-      @update:model-value="onInput"
+      class="w-full h-8 min-h-8 font-sans"
+      :ui="{ base: 'h-8 min-h-8 text-xs' }"
+      @update:model-value="emit('update:modelValue', $event)"
       @change="$emit('change', $event)"
       @keydown.enter="$emit('enter', $event)"
     >
       <!-- Bouton d'action à droite (Basculer mot de passe ou Effacer recherche) -->
       <template #trailing>
-        <button
+        <AppButton
           v-if="type === 'password'"
           type="button"
-          tabindex="-1"
-          class="h-7 w-7 inline-flex items-center justify-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          variant="ghost"
+          size="xs"
           :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+          :title="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
           @click="showPassword = !showPassword"
         >
           <UIcon
             :name="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
             class="w-4 h-4"
           />
-        </button>
+        </AppButton>
 
-        <button
+        <AppButton
           v-else-if="clearable && modelValue"
           type="button"
-          tabindex="-1"
-          class="h-7 w-7 inline-flex items-center justify-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          variant="ghost"
+          size="xs"
+          icon="i-lucide-x"
           aria-label="Effacer le champ"
+          title="Effacer le champ"
           @click="handleClear"
-        >
-          <UIcon name="i-lucide-x" class="w-4 h-4" />
-        </button>
+        />
       </template>
     </UInput>
   </UFormField>

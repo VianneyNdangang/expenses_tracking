@@ -26,4 +26,6 @@ logs
 # Local data and private documents
 /backups/
 /public/uploads/
+/storage/signed-letter-scans/
+/storage/debt-recognitions/
 /prompt.txt

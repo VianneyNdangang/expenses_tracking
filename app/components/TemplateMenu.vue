@@ -46,9 +46,9 @@ const items: DropdownMenuItem[] = [{
     :ui="{ content: 'min-w-fit' }"
     size="xs"
   >
-    <UButton
-      label="Starter"
+    <AppButton
       variant="subtle"
+      label="Starter"
       trailing-icon="i-lucide-chevron-down"
       size="xs"
       class="h-7 cursor-pointer -mb-[6px] font-semibold rounded-full truncate inline-flex items-center"

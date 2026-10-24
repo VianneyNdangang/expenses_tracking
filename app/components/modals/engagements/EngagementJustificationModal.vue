@@ -11,6 +11,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   paidAmount: 0
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -66,14 +67,12 @@ const submitJustification = async () => {
 
   actionLoading.value = true
   try {
-    await $fetch('/api/justifications', {
-      method: 'POST',
-      body: validation.data
-    })
+    await useApi().post('/api/justifications', validation.data)
     isOpen.value = false
+    requestToast.success('Justification enregistrée.')
     emit('justified')
   } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement de la justification'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement de la justification')
   } finally {
     actionLoading.value = false
   }

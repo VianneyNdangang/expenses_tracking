@@ -5,6 +5,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -36,19 +37,17 @@ const submitCreateVersion = async () => {
 
   createVersionLoading.value = true
   try {
-    const res = await $fetch<{ success: boolean; message?: string; template: any }>('/api/template', {
-      method: 'POST',
-      body: {
+    const response = await useApi().post<{ success: boolean; message?: string; template: any }>('/api/template', {
         content: props.content,
         password: patronPasswordConfirm.value
-      }
     })
+    const res = response.data
 
     isOpen.value = false
     patronPasswordConfirm.value = ''
     emit('confirmed', res.message || 'Nouvelle version du modèle créée et activée avec succès')
   } catch (err: any) {
-    passwordConfirmError.value = err.data?.statusMessage || err.message || 'Mot de passe incorrect'
+    requestToast.error(err.data?.statusMessage || err.message || 'Mot de passe incorrect')
   } finally {
     createVersionLoading.value = false
   }

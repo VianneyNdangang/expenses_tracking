@@ -9,6 +9,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   item: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -27,10 +28,10 @@ watch(() => props.modelValue, async (val) => {
     loading.value = true
     priceHistory.value = []
     try {
-      const res = await $fetch<any[]>(`/api/items/${props.item.id}/prices`)
-      priceHistory.value = res || []
+      const response = await useApi().get<any[]>(`/api/items/${props.item.id}/prices`)
+      priceHistory.value = response.data || []
     } catch (err: any) {
-      console.error('Erreur historique prix', err)
+      requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors du chargement de l’historique des prix')
     } finally {
       loading.value = false
     }

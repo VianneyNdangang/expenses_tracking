@@ -13,6 +13,7 @@ const props = withDefaults(defineProps<Props>(), {
   amountRequested: 0,
   formattedAmountRequested: '0 FCFA'
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -64,14 +65,12 @@ const submitDecision = async () => {
 
   actionLoading.value = true
   try {
-    await $fetch(`/api/commitments/${props.commitmentId}/decision`, {
-      method: 'POST',
-      body: validation.data
-    })
+    await useApi().post(`/api/commitments/${props.commitmentId}/decision`, validation.data)
     isOpen.value = false
+    requestToast.success(props.decisionType === 'approve' ? 'Engagement accepté.' : 'Engagement refusé.')
     emit('decided')
   } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de la prise de décision'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la prise de décision')
   } finally {
     actionLoading.value = false
   }

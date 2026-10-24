@@ -5,6 +5,7 @@ interface Props {
   variant?: 'primary' | 'secondary' | 'danger' | 'danger-outline' | 'outline' | 'soft' | 'subtle' | 'ghost' | 'link' | 'solid'
   color?: 'primary' | 'neutral' | 'error' | 'warning' | 'success' | 'info'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  height?: 'compact' | 'field' | 'auto'
   icon?: string
   trailingIcon?: string
   loading?: boolean
@@ -12,14 +13,18 @@ interface Props {
   block?: boolean
   to?: RouteLocationRaw
   href?: string
+  download?: boolean | string
   target?: string
   type?: 'button' | 'submit' | 'reset'
   label?: string
+  ariaLabel?: string
+  title?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'primary',
   size: 'sm',
+  height: 'compact',
   type: 'button',
   loading: false,
   disabled: false,
@@ -71,6 +76,19 @@ const computedVariant = computed(() => {
   }
 })
 
+const buttonHeightClass = computed(() => {
+  switch (props.height) {
+    case 'field':
+      return '!h-8 h-8 min-h-8'
+    case 'auto':
+      return '!h-auto h-auto min-h-0 !py-2.5 !text-left !justify-between !items-stretch'
+    default:
+      return '!h-7 h-7'
+  }
+})
+
+const tooltipText = computed(() => props.title || props.ariaLabel)
+
 const handleClick = (e: MouseEvent) => {
   if (!props.disabled && !props.loading) {
     emit('click', e)
@@ -79,33 +97,46 @@ const handleClick = (e: MouseEvent) => {
 </script>
 
 <template>
-  <UButton
-    :color="computedColor"
-    :variant="computedVariant"
-    :size="size"
-    :icon="icon"
-    :trailing-icon="trailingIcon"
-    :loading="loading"
-    :disabled="disabled"
-    :block="block"
-    :to="to"
-    :href="href"
-    :target="target"
-    :type="type"
-    class="!h-7 h-7 cursor-pointer transition-all active:scale-[0.98] inline-flex items-center justify-center text-xs py-0 select-none"
-    :ui="{
-      base: '!h-7 h-7 cursor-pointer py-0 text-xs inline-flex items-center justify-center'
-    }"
-    @click="handleClick"
+  <UTooltip
+    :text="tooltipText"
+    :disabled="!tooltipText"
   >
-    <template v-if="$slots.leading" #leading>
-      <slot name="leading" />
-    </template>
-    
-    <slot>{{ label }}</slot>
+    <UButton
+      :color="computedColor"
+      :variant="computedVariant"
+      :size="size"
+      :icon="icon"
+      :trailing-icon="trailingIcon"
+      :loading="loading"
+      :disabled="disabled"
+      :block="block"
+      :to="to"
+      :href="href"
+      :download="download"
+      :target="target"
+      :type="type"
+      :aria-label="ariaLabel"
+      :class="[buttonHeightClass, 'cursor-pointer transition-all active:scale-[0.98] inline-flex items-center justify-center text-xs py-0 select-none']"
+      :ui="{
+        base: [buttonHeightClass, 'cursor-pointer py-0 text-xs inline-flex items-center justify-center']
+      }"
+      @click="handleClick"
+    >
+      <template
+        v-if="$slots.leading"
+        #leading
+      >
+        <slot name="leading" />
+      </template>
 
-    <template v-if="$slots.trailing" #trailing>
-      <slot name="trailing" />
-    </template>
-  </UButton>
+      <slot>{{ label }}</slot>
+
+      <template
+        v-if="$slots.trailing"
+        #trailing
+      >
+        <slot name="trailing" />
+      </template>
+    </UButton>
+  </UTooltip>
 </template>

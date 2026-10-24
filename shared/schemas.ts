@@ -52,6 +52,15 @@ export const ChangePasswordSchema = z.object({
 })
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>
 
+export const UpdateCredentialsSchema = z.object({
+  currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
+  username: z.string().min(3, 'L\'identifiant doit comporter au moins 3 caractères').trim().toLowerCase().optional(),
+  newPassword: z.string().min(8, 'Le nouveau mot de passe doit comporter au moins 8 caractères').optional()
+}).refine(data => data.username !== undefined || data.newPassword !== undefined, {
+  message: 'Saisissez un nouvel identifiant ou un nouveau mot de passe'
+})
+export type UpdateCredentialsInput = z.infer<typeof UpdateCredentialsSchema>
+
 // --- Articles (Items) ---
 export const ItemSchema = z.object({
   name: z.string().min(2, "Le nom de l'article est requis (min 2 caractères)").trim(),
@@ -68,6 +77,26 @@ export const CreateItemSchema = z.object({
   notes: z.string().optional().default('')
 })
 export type CreateItemInput = z.infer<typeof CreateItemSchema>
+
+export const CreateItemsSchema = z.array(CreateItemSchema)
+  .min(2, 'Ajoutez au moins deux articles pour une création multiple')
+  .max(100, 'Vous pouvez ajouter au maximum 100 articles à la fois')
+  .superRefine((items, ctx) => {
+    const seenNames = new Set<string>()
+
+    items.forEach((item, index) => {
+      const normalizedName = item.name.toLowerCase()
+      if (seenNames.has(normalizedName)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Cet article est présent plusieurs fois',
+          path: [index, 'name']
+        })
+      }
+      seenNames.add(normalizedName)
+    })
+  })
+export type CreateItemsInput = z.infer<typeof CreateItemsSchema>
 
 // --- Prix d'article ---
 export const NewPriceSchema = z.object({
@@ -141,6 +170,42 @@ export const CreateCommitmentSchema = z.object({
   }
 })
 export type CreateCommitmentInput = z.infer<typeof CreateCommitmentSchema>
+
+const CalendarDateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'La date doit être au format AAAA-MM-JJ')
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`)
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+  }, 'Date invalide')
+
+const DebtRecognitionFields = z.object({
+  debtorName: z.string().min(2, 'Le nom du débiteur est requis').max(160).trim(),
+  creditorName: z.string().min(2, 'Le nom du créancier est requis').max(160).trim(),
+  amount: z.number().int('Le montant doit être un entier').positive('Le montant doit être supérieur à zéro'),
+  recognitionDate: CalendarDateSchema,
+  dueDate: z.union([CalendarDateSchema, z.literal('')]).optional().default(''),
+  purpose: z.string().min(3, 'Le motif doit comporter au moins 3 caractères').max(2000).trim(),
+  notes: z.string().max(2000).optional().default('')
+})
+
+const validateDebtDueDate = (
+  value: { recognitionDate?: string, dueDate?: string },
+  context: z.RefinementCtx
+) => {
+  if (value.dueDate && value.recognitionDate && value.dueDate < value.recognitionDate) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'La date d’échéance ne peut pas précéder la date de reconnaissance.',
+      path: ['dueDate']
+    })
+  }
+}
+
+export const CreateDebtRecognitionSchema = DebtRecognitionFields.superRefine(validateDebtDueDate)
+export type CreateDebtRecognitionInput = z.infer<typeof CreateDebtRecognitionSchema>
+
+export const UpdateDebtRecognitionSchema = DebtRecognitionFields.partial().superRefine(validateDebtDueDate)
+export type UpdateDebtRecognitionInput = z.infer<typeof UpdateDebtRecognitionSchema>
 
 // --- Décision Patron (Acceptation / Refus) ---
 export const ApproveCommitmentSchema = z.object({
@@ -234,4 +299,3 @@ export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): Validati
     firstError: result.error.issues[0]?.message || 'Données du formulaire non valides'
   }
 }
-

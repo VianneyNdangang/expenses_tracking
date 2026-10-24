@@ -1,6 +1,7 @@
 import './AuditLog'
 import './Commitment'
 import './Counter'
+import './DebtRecognition'
 import './Item'
 import './ItemPrice'
 import './Justification'

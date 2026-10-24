@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataTableColumn } from '../components/AppDataTable.vue'
 import AuditDetailModal from '~/components/modals/audit/AuditDetailModal.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Journal d’Audit'
@@ -9,13 +10,24 @@ useHead({
 const page = ref(1)
 const entityFilter = ref('')
 const actionFilter = ref('')
+const entityOptions = [
+  { label: 'Toutes les entités', value: '' },
+  { label: 'Engagements', value: 'Commitment' },
+  { label: 'Paiements', value: 'Payment' },
+  { label: 'Justifications', value: 'Justification' },
+  { label: 'Articles', value: 'Item' },
+  { label: 'Employés', value: 'Worker' },
+  { label: 'Utilisateurs / Connexions', value: 'User' },
+  { label: 'Paramètres', value: 'Settings' }
+]
 
-const { data: auditData, pending, refresh } = await useFetch('/api/audit', {
-  query: {
-    page,
-    entity: entityFilter,
-    action: actionFilter
-  },
+const { data: auditData, pending, refresh } = await useApiData<ApiGetResponse<'/api/audit'>>('/api/audit', {
+  key: 'audit',
+  params: () => ({
+    page: page.value,
+    entity: entityFilter.value,
+    action: actionFilter.value
+  }),
   watch: [page, entityFilter, actionFilter]
 })
 
@@ -81,19 +93,11 @@ const getActionColor = (action: string) => {
       <!-- Filtres -->
       <template #filters>
         <div class="w-48 shrink-0">
-          <select
+          <AppSelect
             v-model="entityFilter"
-            class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-          >
-            <option value="">Toutes les entités</option>
-            <option value="Commitment">Engagements</option>
-            <option value="Payment">Paiements</option>
-            <option value="Justification">Justifications</option>
-            <option value="Item">Articles</option>
-            <option value="Worker">Employés</option>
-            <option value="User">Utilisateurs / Connexions</option>
-            <option value="Settings">Paramètres</option>
-          </select>
+            :items="entityOptions"
+            placeholder="Toutes les entités"
+          />
         </div>
       </template>
 

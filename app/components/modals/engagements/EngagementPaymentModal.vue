@@ -10,6 +10,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   defaultAmount: 0
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -32,6 +33,13 @@ const form = reactive({
 const formErrors = ref<Record<string, string>>({})
 const actionLoading = ref(false)
 const actionError = ref('')
+const paymentMethodOptions = [
+  { label: 'Espèces', value: 'Espèces' },
+  { label: 'Virement bancaire', value: 'Virement' },
+  { label: 'Chèque', value: 'Chèque' },
+  { label: 'Mobile Money (Orange/MTN)', value: 'Mobile Money' },
+  { label: 'Autre', value: 'Autre' }
+]
 
 watch(() => props.modelValue, (val) => {
   if (val) {
@@ -67,14 +75,12 @@ const submitPayment = async () => {
 
   actionLoading.value = true
   try {
-    await $fetch('/api/payments', {
-      method: 'POST',
-      body: validation.data
-    })
+    await useApi().post('/api/payments', validation.data)
     isOpen.value = false
+    requestToast.success('Paiement enregistré.')
     emit('paid')
   } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement du paiement'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement du paiement')
   } finally {
     actionLoading.value = false
   }
@@ -106,21 +112,11 @@ const submitPayment = async () => {
       />
 
       <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Mode de paiement
-          </label>
-          <select
+        <AppSelect
             v-model="form.method"
-            class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-          >
-            <option value="Espèces">Espèces</option>
-            <option value="Virement">Virement bancaire</option>
-            <option value="Chèque">Chèque</option>
-            <option value="Mobile Money">Mobile Money (Orange/MTN)</option>
-            <option value="Autre">Autre</option>
-          </select>
-        </div>
+            label="Mode de paiement"
+            :items="paymentMethodOptions"
+          />
 
         <AppDatePicker
           v-model="form.date"

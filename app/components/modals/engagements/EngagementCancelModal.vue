@@ -7,6 +7,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -50,14 +51,12 @@ const submitCancel = async () => {
 
   actionLoading.value = true
   try {
-    await $fetch(`/api/commitments/${props.commitmentId}/cancel`, {
-      method: 'POST',
-      body: validation.data
-    })
+    await useApi().post(`/api/commitments/${props.commitmentId}/cancel`, validation.data)
     isOpen.value = false
+    requestToast.success('Engagement annulé.')
     emit('cancelled')
   } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’annulation'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’annulation')
   } finally {
     actionLoading.value = false
   }

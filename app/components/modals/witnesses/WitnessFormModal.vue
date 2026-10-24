@@ -9,6 +9,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   witnessId: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -48,13 +49,14 @@ watch(() => props.modelValue, async (val) => {
     if (props.witnessId) {
       modalLoading.value = true
       try {
-        const details = await $fetch<any>(`/api/witnesses/${props.witnessId}`)
+        const response = await useApi().get<any>(`/api/witnesses/${props.witnessId}`)
+        const details = response.data
         form.civility = details.civility || 'M.'
         form.fullName = details.fullName || ''
         form.cni = details.cni || ''
         form.phone = details.phone || ''
       } catch (err: any) {
-        modalError.value = err.data?.statusMessage || err.message || 'Erreur lors du chargement des détails'
+        requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors du chargement des détails')
       } finally {
         modalLoading.value = false
       }
@@ -82,20 +84,15 @@ const submitForm = async () => {
   modalLoading.value = true
   try {
     if (isEditing.value && props.witnessId) {
-      await $fetch(`/api/witnesses/${props.witnessId}`, {
-        method: 'PUT',
-        body: validation.data
-      })
+      await useApi().put(`/api/witnesses/${props.witnessId}`, validation.data)
     } else {
-      await $fetch('/api/witnesses', {
-        method: 'POST',
-        body: validation.data
-      })
+      await useApi().post('/api/witnesses', validation.data)
     }
     isOpen.value = false
+    requestToast.success(isEditing.value ? 'Témoin mis à jour.' : 'Témoin enregistré.')
     emit('saved')
   } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement')
   } finally {
     modalLoading.value = false
   }

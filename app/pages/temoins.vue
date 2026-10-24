@@ -2,6 +2,7 @@
 import type { DataTableColumn } from '../components/AppDataTable.vue'
 import WitnessFormModal from '~/components/modals/witnesses/WitnessFormModal.vue'
 import WitnessArchiveModal from '~/components/modals/witnesses/WitnessArchiveModal.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Gestion des Témoins'
@@ -9,8 +10,10 @@ useHead({
 
 const includeArchived = ref(false)
 
-const { data: witnesses, pending, refresh } = await useFetch('/api/witnesses', {
-  query: { includeArchived }
+const { data: witnesses, pending, refresh } = await useApiData<ApiGetResponse<'/api/witnesses'>>('/api/witnesses', {
+  key: 'witnesses',
+  params: () => ({ includeArchived: includeArchived.value }),
+  watch: [includeArchived]
 })
 
 const columns: DataTableColumn[] = [

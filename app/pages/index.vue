@@ -1,11 +1,24 @@
 <script setup lang="ts">
 import type { DataTableColumn } from '../components/AppDataTable.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Tableau de bord'
 })
 
-const { data: dashboard, pending, refresh } = await useFetch('/api/dashboard')
+const { data: dashboard, pending, refresh } = await useApiData<ApiGetResponse<'/api/dashboard'>>('/api/dashboard', {
+  key: 'dashboard'
+})
+const { download: downloadApiFile } = useApiFile()
+const requestToast = useRequestToast()
+
+const downloadCommitmentsExcel = async () => {
+  try {
+    await downloadApiFile('/api/exports/commitments?format=excel', 'engagements.xlsx')
+  } catch (error: unknown) {
+    requestToast.error(error instanceof Error ? error.message : 'Impossible de télécharger le fichier Excel.')
+  }
+}
 
 const currentDateFormatted = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -49,12 +62,11 @@ const recentColumns: DataTableColumn[] = [
         />
 
         <AppButton
-          href="/api/exports/commitments?format=excel"
-          target="_blank"
           variant="outline"
           size="xs"
           icon="i-lucide-download"
           label="Export Excel"
+          @click="downloadCommitmentsExcel"
         />
 
         <AppButton

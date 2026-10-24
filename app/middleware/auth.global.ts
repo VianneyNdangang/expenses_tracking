@@ -15,11 +15,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/')
   }
 
-  // Protection des routes réservées exclusivement au Patron
-  const patronOnlyPrefixes = ['/parametres', '/audit']
+  // Protection des routes réservées à un rôle précis
+  const patronOnlyPrefixes = ['/parametres']
   if (patronOnlyPrefixes.some(prefix => to.path.startsWith(prefix))) {
     const { isPatron } = useAuth()
     if (!isPatron.value) {
+      return navigateTo('/')
+    }
+  }
+
+  const agendaPrefixes = ['/agenda']
+  if (agendaPrefixes.some(prefix => to.path.startsWith(prefix))) {
+    const { isPatron, isSecretaire } = useAuth()
+    if (!isPatron.value && !isSecretaire.value) {
+      return navigateTo('/')
+    }
+  }
+
+  const technicianOnlyPrefixes = ['/composants', '/audit']
+  if (technicianOnlyPrefixes.some(prefix => to.path.startsWith(prefix))) {
+    const { isTechnicien } = useAuth()
+    if (!isTechnicien.value) {
       return navigateTo('/')
     }
   }

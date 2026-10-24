@@ -2,13 +2,13 @@ import { AuditLog } from '../../models/AuditLog'
 import { requireRole } from '../../utils/roles'
 
 export default defineEventHandler(async (event) => {
-  requireRole(event, 'PATRON')
+  requireRole(event, 'TECHNICIEN')
   const query = getQuery(event)
   const limit = Math.min(Number(query.limit) || 50, 100)
   const page = Math.max(Number(query.page) || 1, 1)
   const skip = (page - 1) * limit
 
-  const filter: any = {}
+  const filter: Record<string, unknown> = {}
   if (query.entity) {
     filter.entity = query.entity
   }

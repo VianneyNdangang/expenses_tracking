@@ -26,6 +26,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const { name, role, password } = validation.data
+  if (user._id === currentPatron._id && role && role !== user.role) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Vous ne pouvez pas modifier le rôle de votre propre compte.'
+    })
+  }
+
   const before = { name: user.name, role: user.role }
 
   // Protection : empêcher de rétrograder le dernier patron

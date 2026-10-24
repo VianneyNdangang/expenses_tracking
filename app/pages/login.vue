@@ -3,12 +3,13 @@ import { LoginSchema, validateForm } from '~~/shared/schemas'
 
 const { login } = useAuth()
 const router = useRouter()
+const requestToast = useRequestToast()
 
 useSeoMeta({
-  title: 'Gestion des dépenses et engagements',
-  description: 'Espace de connexion sécurisé pour suivre les dépenses, les engagements et les justificatifs de votre entreprise.',
-  ogTitle: 'Gestion des dépenses et engagements',
-  ogDescription: 'Suivez les dépenses, les engagements et les justificatifs de votre entreprise depuis un espace sécurisé.',
+  title: 'Grand Luix SARL - Gestion des dépenses',
+  description: 'Espace sécurisé de gestion des dépenses, engagements et justificatifs de Grand Luix SARL.',
+  ogTitle: 'Grand Luix SARL - Gestion des dépenses',
+  ogDescription: 'Suivi sécurisé des dépenses, engagements et justificatifs de Grand Luix SARL.',
   ogType: 'website',
   ogUrl: 'https://controledepenses.grandluixdepense.com/login',
   twitterCard: 'summary'
@@ -46,7 +47,7 @@ const handleLogin = async () => {
     })
     await router.push('/')
   } catch (err: any) {
-    errorMessage.value = err.data?.statusMessage || err.message || 'Identifiant ou mot de passe incorrect'
+    requestToast.error(err.data?.statusMessage || err.message || 'Identifiant ou mot de passe incorrect')
   } finally {
     loading.value = false
   }
@@ -57,13 +58,13 @@ const handleLogin = async () => {
   <div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-100 dark:bg-slate-950 px-4">
     <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
       <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-600 text-white font-bold text-xl shadow-md mb-4">
-        AD
+        GL
       </div>
       <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-        Contrôle des Dépenses
+        Grand Luix SARL
       </h1>
       <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
-        Espace de gestion et validation de la Direction Générale
+        Gestion et suivi des dépenses
       </p>
     </div>
 
@@ -81,8 +82,8 @@ const handleLogin = async () => {
           <AppInput
             v-model="form.username"
             type="text"
-            label="Identifiant Patron"
-            placeholder="Ex: patron"
+            label="Identifiant"
+            placeholder="Votre identifiant"
             icon="i-lucide-user"
             :error="formErrors.username"
             required

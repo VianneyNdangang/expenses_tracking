@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { formatFCFA } from '~~/shared/currency'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 const route = useRoute()
 const commitmentId = route.params.id as string
 
-const { data: commitment } = await useFetch(`/api/commitments/${commitmentId}`)
+const { data: commitment } = await useApiData<ApiGetResponse<'/api/commitments/:id'>>(computed(() => `/api/commitments/${route.params.id}`), {
+  key: 'commitment-letter'
+})
 
 useHead({
   title: computed(() => commitment.value ? `Lettre d'Engagement ${commitment.value.letterNumber}` : 'Lettre d’Engagement')
@@ -117,7 +120,7 @@ const hasItems = computed(() => {
       <div class="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
         <div>
           <div class="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Établissements & Direction Générale
+            GRAND LUIX SARL
           </div>
           <div class="text-lg font-extrabold uppercase tracking-tight text-black mt-0.5">
             {{ commitment.settings.patronName }}

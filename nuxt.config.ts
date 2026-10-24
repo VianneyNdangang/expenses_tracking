@@ -20,7 +20,7 @@ export default defineNuxtConfig({
     sessionSecret: process.env.SESSION_SECRET || '',
     fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY || '',
     public: {
-      appName: 'Contrôle des Dépenses',
+      appName: 'Grand Luix SARL — Gestion des dépenses',
       currency: 'FCFA'
     }
   },

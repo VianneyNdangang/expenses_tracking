@@ -7,6 +7,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   witness: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -32,11 +33,12 @@ const confirmArchive = async () => {
   archiveLoading.value = true
   archiveError.value = ''
   try {
-    await $fetch(`/api/witnesses/${props.witness.id}/archive`, { method: 'PATCH' })
+    await useApi().patch(`/api/witnesses/${props.witness.id}/archive`)
     isOpen.value = false
+    requestToast.success(props.witness.isArchived ? 'Témoin restauré.' : 'Témoin archivé.')
     emit('archived')
   } catch (err: any) {
-    archiveError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’opération'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’opération')
   } finally {
     archiveLoading.value = false
   }

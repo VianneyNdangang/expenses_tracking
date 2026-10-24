@@ -8,16 +8,22 @@ import BossPasswordModal from '~/components/modals/settings/BossPasswordModal.vu
 import UserCreateModal from '~/components/modals/settings/UserCreateModal.vue'
 import UserEditModal from '~/components/modals/settings/UserEditModal.vue'
 import UserDeleteModal from '~/components/modals/settings/UserDeleteModal.vue'
+import type { ApiGetResponse } from '~/composables/useApi'
 
 useHead({
   title: 'Paramètres & Sécurité'
 })
 
 const { user: currentConnectedUser } = useAuth()
+const requestToast = useRequestToast()
 const activeTab = ref<'settings' | 'template' | 'users' | 'security' | 'sessions'>('settings')
+const patronCivilityOptions = [
+  { label: 'M.', value: 'M.' },
+  { label: 'Mme', value: 'Mme' }
+]
 
 // 1. Paramètres
-const { data: settings, refresh: refreshSettings } = await useFetch('/api/settings')
+const { data: settings, refresh: refreshSettings } = await useApiData<ApiGetResponse<'/api/settings'>>('/api/settings', { key: 'settings' })
 const settingsForm = reactive({
   patronCivility: 'M.' as 'M.' | 'Mme' | 'Mlle',
   patronName: '',
@@ -45,7 +51,7 @@ watch(settings, (val) => {
 }, { immediate: true })
 
 // 2. Modèle de lettre
-const { data: templateData, refresh: refreshTemplate } = await useFetch('/api/template')
+const { data: templateData, refresh: refreshTemplate } = await useApiData<ApiGetResponse<'/api/template'>>('/api/template', { key: 'letter-template' })
 const templateContent = ref('')
 const templateErrors = ref<Record<string, string>>({})
 const isPasswordConfirmModalOpen = ref(false)
@@ -58,7 +64,7 @@ watch(templateData, (val) => {
 }, { immediate: true })
 
 // 3. Utilisateurs & Rôles
-const { data: usersData, refresh: refreshUsers } = await useFetch('/api/users')
+const { data: usersData, refresh: refreshUsers } = await useApiData<ApiGetResponse<'/api/users'>>('/api/users', { key: 'users' })
 const usersList = computed(() => usersData.value?.users || [])
 
 const isCreateUserModalOpen = ref(false)
@@ -86,15 +92,11 @@ const passwordForm = reactive({
 const passwordErrors = ref<Record<string, string>>({})
 
 // 5. Sessions
-const { data: sessions, refresh: refreshSessions } = await useFetch('/api/auth/sessions')
+const { data: sessions, refresh: refreshSessions } = await useApiData<ApiGetResponse<'/api/auth/sessions'>>('/api/auth/sessions', { key: 'auth-sessions' })
 
 const loading = ref(false)
-const successMsg = ref('')
-const errorMsg = ref('')
 
 const clearMessages = () => {
-  successMsg.value = ''
-  errorMsg.value = ''
   settingsErrors.value = {}
   templateErrors.value = {}
   passwordErrors.value = {}
@@ -116,20 +118,17 @@ const saveSettings = async () => {
 
   if (!validation.success) {
     settingsErrors.value = validation.errors
-    errorMsg.value = validation.firstError
+    requestToast.error(validation.firstError)
     return
   }
 
   loading.value = true
   try {
-    await $fetch('/api/settings', {
-      method: 'PUT',
-      body: validation.data
-    })
-    successMsg.value = 'Paramètres généraux enregistrés avec succès'
+    await useApi().put('/api/settings', validation.data)
+    requestToast.success('Paramètres généraux enregistrés avec succès.')
     await refreshSettings()
   } catch (err: any) {
-    errorMsg.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement')
   } finally {
     loading.value = false
   }
@@ -141,7 +140,7 @@ const openPasswordConfirmModal = () => {
   templateErrors.value = {}
   if (!templateContent.value || templateContent.value.trim().length < 50) {
     templateErrors.value = { content: 'Le texte du modèle doit comporter au moins 50 caractères' }
-    errorMsg.value = 'Le texte du modèle doit comporter au moins 50 caractères'
+    requestToast.error('Le texte du modèle doit comporter au moins 50 caractères.')
     return
   }
 
@@ -153,18 +152,16 @@ const activateTemplateVersion = async (version: number) => {
   clearMessages()
   activatingVersion.value = version
   try {
-    const res = await $fetch<{ success: boolean; message?: string }>('/api/template/activate', {
-      method: 'POST',
-      body: { version }
-    })
-    successMsg.value = res.message || `Le modèle v${version} a été activé avec succès`
+    const response = await useApi().post<{ success: boolean; message?: string }>('/api/template/activate', { version })
+    const res = response.data
+    requestToast.success(res.message || `Le modèle v${version} a été activé avec succès`)
     await refreshTemplate()
     const active = templateData.value?.templates?.find((t: any) => t.version === version)
     if (active) {
       templateContent.value = active.content
     }
   } catch (err: any) {
-    errorMsg.value = err.data?.statusMessage || err.message || 'Erreur lors de l’activation du modèle'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’activation du modèle')
   } finally {
     activatingVersion.value = null
   }
@@ -173,14 +170,14 @@ const activateTemplateVersion = async (version: number) => {
 // Charger le texte d'un modèle dans l'éditeur
 const loadTemplateToEditor = (tpl: any) => {
   templateContent.value = tpl.content
-  successMsg.value = `Contenu du modèle version v${tpl.version} chargé dans l'éditeur`
+  requestToast.success(`Contenu du modèle version v${tpl.version} chargé dans l'éditeur`)
 }
 
 const changePassword = async () => {
   clearMessages()
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
     passwordErrors.value = { confirmPassword: 'Le nouveau mot de passe et sa confirmation ne correspondent pas' }
-    errorMsg.value = 'Le nouveau mot de passe et sa confirmation ne correspondent pas'
+    requestToast.error('Le nouveau mot de passe et sa confirmation ne correspondent pas.')
     return
   }
 
@@ -191,22 +188,19 @@ const changePassword = async () => {
 
   if (!validation.success) {
     passwordErrors.value = validation.errors
-    errorMsg.value = validation.firstError
+    requestToast.error(validation.firstError)
     return
   }
 
   loading.value = true
   try {
-    await $fetch('/api/auth/change-password', {
-      method: 'POST',
-      body: validation.data
-    })
-    successMsg.value = 'Mot de passe patron mis à jour avec succès (hachage Argon2id)'
+    await useApi().post('/api/auth/change-password', validation.data)
+    requestToast.success('Mot de passe patron mis à jour avec succès.')
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
   } catch (err: any) {
-    errorMsg.value = err.data?.statusMessage || err.message || 'Erreur lors de la modification'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la modification')
   } finally {
     loading.value = false
   }
@@ -215,11 +209,11 @@ const changePassword = async () => {
 const revokeSession = async (sessionId: string) => {
   clearMessages()
   try {
-    await $fetch(`/api/auth/sessions/${sessionId}`, { method: 'DELETE' })
-    successMsg.value = 'Session distante révoquée avec succès'
+    await useApi().delete(`/api/auth/sessions/${sessionId}`)
+    requestToast.success('Session distante révoquée avec succès.')
     await refreshSessions()
   } catch (err: any) {
-    errorMsg.value = err.data?.statusMessage || err.message || 'Erreur lors de la révocation'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la révocation')
   }
 }
 
@@ -496,21 +490,6 @@ const formattedPreviewHtml = computed(() => {
       </p>
     </div>
 
-    <!-- Alertes -->
-    <AppCard
-      v-if="successMsg"
-      variant="primary"
-      icon="i-lucide-check-circle-2"
-      :title="successMsg"
-    />
-
-    <AppCard
-      v-if="errorMsg"
-      variant="danger"
-      icon="i-lucide-alert-circle"
-      :title="errorMsg"
-    />
-
     <!-- Navigation par Onglets -->
     <div class="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto">
       <AppButton
@@ -558,16 +537,12 @@ const formattedPreviewHtml = computed(() => {
       <form class="space-y-4" @submit.prevent="saveSettings">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Civilité
-            </label>
-            <select
+            <AppSelect
               v-model="settingsForm.patronCivility"
-              class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-            >
-              <option value="M.">M.</option>
-              <option value="Mme">Mme</option>
-            </select>
+              label="Civilité"
+              :items="patronCivilityOptions"
+              required
+            />
           </div>
 
           <div class="sm:col-span-2">
@@ -1193,7 +1168,7 @@ const formattedPreviewHtml = computed(() => {
                   <AppBadge
                     v-if="u.role === 'PATRON'"
                     label="Patron"
-                    color="emerald"
+                    color="success"
                     variant="subtle"
                     size="xs"
                     icon="i-lucide-crown"
@@ -1201,7 +1176,7 @@ const formattedPreviewHtml = computed(() => {
                   <AppBadge
                     v-else-if="u.role === 'SECRETAIRE'"
                     label="Secrétaire"
-                    color="sky"
+                    color="info"
                     variant="subtle"
                     size="xs"
                     icon="i-lucide-clipboard-pen"
@@ -1209,7 +1184,7 @@ const formattedPreviewHtml = computed(() => {
                   <AppBadge
                     v-else
                     label="Technicien"
-                    color="amber"
+                    color="warning"
                     variant="subtle"
                     size="xs"
                     icon="i-lucide-wrench"
@@ -1257,28 +1232,28 @@ const formattedPreviewHtml = computed(() => {
     <BossPasswordModal
       v-model="isPasswordConfirmModalOpen"
       :content="templateContent"
-      @confirmed="(msg) => { successMsg = msg; refreshTemplate() }"
+      @confirmed="(msg) => { requestToast.success(msg); refreshTemplate() }"
     />
 
     <!-- Modale Créer Utilisateur -->
     <UserCreateModal
       v-model="isCreateUserModalOpen"
-      @created="(msg) => { successMsg = msg; refreshUsers() }"
+      @created="(msg) => { requestToast.success(msg); refreshUsers() }"
     />
 
     <!-- Modale Modifier Utilisateur -->
     <UserEditModal
       v-model="isEditUserModalOpen"
       :user="selectedUserForEdit"
-      @updated="(msg) => { successMsg = msg; refreshUsers() }"
+      @updated="(msg) => { requestToast.success(msg); refreshUsers() }"
     />
 
     <!-- Modale Supprimer Utilisateur -->
     <UserDeleteModal
       v-model="isDeleteUserModalOpen"
       :user="selectedUserForDelete"
-      @deleted="(msg) => { successMsg = msg; refreshUsers() }"
-      @error="(msg) => { errorMsg = msg }"
+      @deleted="(msg) => { requestToast.success(msg); refreshUsers() }"
+      @error="(msg) => requestToast.error(msg)"
     />
 
     <!-- Onglet 4 : Sessions Actives -->

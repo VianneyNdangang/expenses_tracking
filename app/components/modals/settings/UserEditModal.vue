@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UpdateUserSchema, USER_ROLES, type UserRole, validateForm } from '~~/shared/schemas'
+import { UpdateUserSchema, USER_ROLES, type UserRole, UserRoleEnum, validateForm } from '~~/shared/schemas'
 
 interface Props {
   modelValue: boolean
@@ -9,6 +9,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   user: null
 })
+const requestToast = useRequestToast()
+
+const { user: loggedInUser } = useAuth()
+const isEditingOwnAccount = computed(() => props.user?.id === loggedInUser.value?.id)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -27,9 +31,21 @@ const form = reactive({
   role: 'SECRETAIRE' as UserRole,
   password: ''
 })
+const roleOptions = USER_ROLES.map(role => ({
+  label: role.label,
+  description: role.description.split(':')[0],
+  value: role.value
+}))
 
 const errors = ref<Record<string, string>>({})
 const loading = ref(false)
+
+const setRole = (value: string) => {
+  const parsedRole = UserRoleEnum.safeParse(value)
+  if (parsedRole.success) {
+    form.role = parsedRole.data
+  }
+}
 
 watch(() => props.modelValue, (val) => {
   if (val && props.user) {
@@ -60,17 +76,12 @@ const submitEditUser = async () => {
 
   loading.value = true
   try {
-    await $fetch(`/api/users/${form.id}`, {
-      method: 'PUT',
-      body: validation.data
-    })
+    await useApi().put(`/api/users/${form.id}`, validation.data)
     const msg = `Utilisateur "${form.name}" mis à jour avec succès !`
     isOpen.value = false
     emit('updated', msg)
   } catch (err: any) {
-    errors.value = {
-      name: err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour'
-    }
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour')
   } finally {
     loading.value = false
   }
@@ -105,32 +116,17 @@ const submitEditUser = async () => {
         </div>
       </div>
 
-      <!-- Sélection du Rôle -->
       <div>
-        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-          Rôle et Responsabilités <span class="text-red-500">*</span>
-        </label>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button
-            v-for="r in USER_ROLES"
-            :key="r.value"
-            type="button"
-            class="p-2.5 rounded-lg border text-left transition-colors cursor-pointer flex flex-col justify-between"
-            :class="form.role === r.value ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'"
-            @click="form.role = r.value"
-          >
-            <div class="flex items-center justify-between mb-1">
-              <span class="font-bold text-xs">{{ r.label }}</span>
-              <UIcon
-                :name="r.value === 'PATRON' ? 'i-lucide-crown' : r.value === 'SECRETAIRE' ? 'i-lucide-clipboard-pen' : 'i-lucide-wrench'"
-                class="w-4 h-4"
-              />
-            </div>
-            <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-              {{ r.description.split(':')[0] }}
-            </span>
-          </button>
-        </div>
+        <p v-if="isEditingOwnAccount" class="text-xs text-slate-500 mb-2">
+          Le rôle de votre propre compte ne peut pas être modifié.
+        </p>
+        <AppSelect
+          :model-value="form.role"
+          label="Rôle et responsabilités"
+          :items="roleOptions"
+          :disabled="isEditingOwnAccount"
+          @update:model-value="setRole"
+        />
       </div>
 
       <AppInput

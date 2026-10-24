@@ -10,6 +10,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   item: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -60,14 +61,12 @@ const submitNewPrice = async () => {
 
   modalLoading.value = true
   try {
-    await $fetch(`/api/items/${props.item.id}/price`, {
-      method: 'POST',
-      body: validation.data
-    })
+    await useApi().post(`/api/items/${props.item.id}/price`, validation.data)
     isOpen.value = false
+    requestToast.success('Le tarif de référence a été mis à jour.')
     emit('saved')
   } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour')
   } finally {
     modalLoading.value = false
   }

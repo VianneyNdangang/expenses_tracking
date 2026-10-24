@@ -9,6 +9,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   workerId: null
 })
+const requestToast = useRequestToast()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -48,13 +49,14 @@ watch(() => props.modelValue, async (val) => {
     if (props.workerId) {
       modalLoading.value = true
       try {
-        const details = await $fetch<any>(`/api/workers/${props.workerId}`)
+        const response = await useApi().get<any>(`/api/workers/${props.workerId}`)
+        const details = response.data
         form.civility = details.civility || 'M.'
         form.fullName = details.fullName || ''
         form.cni = details.cni || ''
         form.phone = details.phone || ''
       } catch (err: any) {
-        modalError.value = err.data?.statusMessage || err.message || 'Erreur lors du chargement des détails'
+        requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors du chargement des détails')
       } finally {
         modalLoading.value = false
       }
@@ -82,20 +84,15 @@ const submitForm = async () => {
   modalLoading.value = true
   try {
     if (isEditing.value && props.workerId) {
-      await $fetch(`/api/workers/${props.workerId}`, {
-        method: 'PUT',
-        body: validation.data
-      })
+      await useApi().put(`/api/workers/${props.workerId}`, validation.data)
     } else {
-      await $fetch('/api/workers', {
-        method: 'POST',
-        body: validation.data
-      })
+      await useApi().post('/api/workers', validation.data)
     }
     isOpen.value = false
+    requestToast.success(isEditing.value ? 'Employé mis à jour.' : 'Employé enregistré.')
     emit('saved')
   } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement'
+    requestToast.error(err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement')
   } finally {
     modalLoading.value = false
   }

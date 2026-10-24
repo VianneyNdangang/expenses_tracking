@@ -25,9 +25,7 @@ const submitDeleteUser = async () => {
   if (!props.user) return
   deleteUserLoading.value = true
   try {
-    await $fetch(`/api/users/${props.user.id}`, {
-      method: 'DELETE'
-    })
+    await useApi().delete(`/api/users/${props.user.id}`)
     const msg = `L'utilisateur "${props.user.name}" a été supprimé avec succès.`
     isOpen.value = false
     emit('deleted', msg)

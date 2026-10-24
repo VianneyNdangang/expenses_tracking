@@ -1,21 +1,21 @@
 <script setup lang="ts">
+import type { UserRole } from '../../shared/schemas'
+
 interface Props {
   mobileOpen?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   mobileOpen: false
 })
 
 const emit = defineEmits<{
   'update:mobileOpen': [val: boolean]
-  close: []
+  'close': []
 }>()
 
-import type { UserRole } from '../../shared/schemas'
-
 const route = useRoute()
-const { user, role, roleLabel, roleBadgeColor, isPatron, isSecretaire, isTechnicien, hasRole, logout } = useAuth()
+const { user, role, roleLabel, roleBadgeColor, isPatron, isSecretaire, logout } = useAuth()
 
 interface NavItem {
   label: string
@@ -27,17 +27,20 @@ interface NavItem {
 
 const allNavigation: NavItem[] = [
   { label: 'Tableau de bord', to: '/', icon: 'i-lucide-layout-dashboard' },
+  { label: 'Mon compte', to: '/profil', icon: 'i-lucide-user-round' },
   { label: 'Engagements', to: '/engagements', icon: 'i-lucide-file-text' },
   { label: 'Nouvel engagement', to: '/engagements/nouveau', icon: 'i-lucide-plus-circle', highlight: true },
+  { label: 'Agenda du Patron', to: '/agenda', icon: 'i-lucide-calendar-days', roles: ['PATRON', 'SECRETAIRE'] },
   { label: 'Articles & Prix', to: '/articles', icon: 'i-lucide-package', roles: ['PATRON', 'TECHNICIEN'] },
   { label: 'Employés', to: '/employes', icon: 'i-lucide-users', roles: ['PATRON', 'SECRETAIRE'] },
   { label: 'Témoins', to: '/temoins', icon: 'i-lucide-user-check', roles: ['PATRON', 'SECRETAIRE'] },
   { label: 'Paramètres', to: '/parametres', icon: 'i-lucide-settings', roles: ['PATRON'] },
-  { label: 'Journal d’audit', to: '/audit', icon: 'i-lucide-shield-alert', roles: ['PATRON'] }
+  { label: 'Composants', to: '/composants', icon: 'i-lucide-panels-top-left', roles: ['TECHNICIEN'] },
+  { label: 'Journal d’audit', to: '/audit', icon: 'i-lucide-shield-alert', roles: ['TECHNICIEN'] }
 ]
 
 const navigation = computed(() => {
-  return allNavigation.filter(item => {
+  return allNavigation.filter((item) => {
     if (!item.roles) return true
     return item.roles.includes(role.value)
   })
@@ -64,14 +67,14 @@ watch(() => route.fullPath, () => {
       <div class="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
         <NuxtLink to="/" class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
-            AD
+            GL
           </div>
           <div>
             <span class="font-bold text-sm tracking-tight text-slate-900 dark:text-white block leading-tight">
-              Contrôle Dépenses
+              Grand Luix SARL
             </span>
             <span class="text-xs text-slate-500 dark:text-slate-400 block font-normal">
-              Direction Générale
+              Gestion des dépenses
             </span>
           </div>
         </NuxtLink>
@@ -139,11 +142,15 @@ watch(() => route.fullPath, () => {
         <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-              AD
+              GL
             </div>
             <div>
-              <div class="font-bold text-sm leading-none text-slate-900 dark:text-white">Contrôle Dépenses</div>
-              <div class="text-xs text-slate-500 mt-1">Espace Direction</div>
+              <div class="font-bold text-sm leading-none text-slate-900 dark:text-white">
+                Grand Luix SARL
+              </div>
+              <div class="text-xs text-slate-500 mt-1">
+                Gestion des dépenses
+              </div>
             </div>
           </div>
           <AppButton

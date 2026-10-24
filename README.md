@@ -1,6 +1,6 @@
-# Plateforme de Contrôle des Dépenses — Abdouraman Expenses
+# Grand Luix SARL — Gestion et contrôle des dépenses
 
-Solution complète, souveraine et hautement sécurisée de gestion et de contrôle des dépenses de chantier et d'approvisionnement pour chef d'entreprise (mono-utilisateur / patron), développée avec **Nuxt 4**, **Nuxt UI**, **Nitro** et **MySQL 8**.
+Application interne de gestion et de contrôle des dépenses de chantier et d'approvisionnement de **Grand Luix SARL**, développée avec **Nuxt 4**, **Nuxt UI**, **Nitro** et **MySQL 8**.
 
 ---
 
@@ -15,6 +15,9 @@ Cette plateforme permet au patron :
 4. **D'enregistrer les décaissements réels** dans une transaction atomique.
 5. **De contrôler la justification des dépenses réelles**, avec calcul strict du reliquat dû à l'entreprise (`Reliquat = Montant payé - Montant réellement dépensé`) et enregistrement du scan de la lettre signée.
 6. **D'auditer chaque action** dans un journal infalsifiable et non modifiable.
+7. **De suivre les reconnaissances de dette** dans un agenda mensuel et chronologique, avec document PDF, scan signé, validation par le Patron et justificatif privé.
+
+Le module **Agenda du Patron** est accessible au Patron et à la Secrétaire. Cette dernière peut préparer ou modifier les brouillons ; seule la validation finale est réservée au Patron. Les pièces jointes sont stockées hors du répertoire public et accessibles uniquement aux utilisateurs autorisés.
 
 ---
 
@@ -39,6 +42,7 @@ L'application respecte les principes de sécurité les plus stricts :
 | **Composants & Design** | [Nuxt UI](https://ui.nuxt.com/) + Tailwind CSS | Interface épurée, responsive, accessible, mode sombre/clair |
 | **Typographie** | Google Font *Public Sans* | Typographie institutionnelle, sobre et hautement lisible |
 | **Base de données** | [MySQL 8.0+](https://www.mysql.com/) | Stockage relationnel et transactions ACID |
+| **Client HTTP** | [Axios](https://axios-http.com/) | Instance unique pour les appels API, avec transmission de la session pendant le rendu serveur |
 | **Validation de données** | [Zod](https://zod.dev/) | Validation isomorphique partagée entre le frontend et l'API Nitro |
 | **Chiffrement & Sécurité** | Node.js `crypto` + `argon2` | AES-256-GCM (clé 256 bits) et Argon2id |
 | **Exports & Rapports** | [SheetJS (xlsx)](https://sheetjs.com/) | Génération directe de classeurs Excel (.xlsx) et fichiers CSV |
@@ -186,7 +190,7 @@ npm run test
 - Modale d'approbation patronale (avec ajustement du montant approuvé) ou de refus avec motif.
 - Modale d'enregistrement du décaissement (mode de paiement, référence, date).
 - Modale de justification finale (saisie des montants réels justificatifs à l'appui, calcul automatique et instantané du reliquat).
-- Téléversement du scan de la lettre d'engagement contresignée (image JPG/PNG ou PDF jusqu'à 10 Mo).
+- Le Patron et la Secrétaire peuvent joindre, lire et télécharger le scan signé après acceptation (PDF, JPG, PNG ou WEBP jusqu'à 20 Mo). Les nouveaux fichiers sont stockés hors du dossier public et accessibles uniquement après authentification.
 
 ### 4. Lettre d'engagement A4 imprimable (`/engagements/:id/lettre`)
 - Mise en page officielle selon le modèle légal de décharge de responsabilité.
@@ -197,6 +201,7 @@ npm run test
 
 ### 5. Gestion des Articles & Prix (`/articles`)
 - Liste des articles avec unités (Sac, Barre, Camion, Fût, etc.).
+- Création d'un article ou saisie de plusieurs articles et prix de référence en une seule opération (jusqu'à 100).
 - Gestion de l'historique des prix de référence : chaque modification clôture le prix précédent avec une date de fin et initialise un nouveau prix actif sans altérer les anciens engagements.
 - Définition de la tolérance spécifique par article (ex: 8%, 10%, 15%).
 
@@ -211,11 +216,17 @@ npm run test
 - Seuils de tolérance et de suspicion par défaut.
 - Éditeur du modèle de lettre officiel avec prévisualisation des balises dynamiques (`{{civilite}}`, `{{nom}}`, `{{montant_lettres}}`, etc.).
 - Changement sécurisé du mot de passe patron avec validation de l'ancien mot de passe.
+- Chaque utilisateur peut modifier son identifiant et son mot de passe depuis `/profil`, après confirmation de son mot de passe actuel. Le rôle du compte ne peut pas être modifié par son titulaire.
 
 ### 8. Journal d'Audit (`/audit`)
 - Liste exhaustive et chronologique des actions administratives.
 - Filtrage par action (`LOGIN`, `CREATE_COMMITMENT`, `DECISION_COMMITMENT`, `PAY_COMMITMENT`, `JUSTIFY_COMMITMENT`, etc.).
 - Inspection détaillée des données avant/après (`diff`).
+- Cette page et son API sont réservées au rôle Technicien.
+
+### 9. Bibliothèque de composants (`/composants`)
+- Galerie interactive des composants d’interface partagés et des principaux éléments de structure.
+- L’accès à cette page est réservé au rôle Technicien.
 
 ---
 
@@ -241,4 +252,4 @@ npm run restore -- --file backups/backup-2026-10-22T13-54-23.json
 
 ## 📜 Licence & Propriété
 
-Application conçue et développée exclusivement pour M. Abdouraman. Tous droits réservés.
+Application conçue pour Grand Luix SARL. Tous droits réservés.
