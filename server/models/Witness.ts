@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document, Model } from 'mongoose'
-import { encryptField, decryptField } from '../utils/crypto'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
+import { decryptField } from '../utils/crypto'
 
-export interface IWitness extends Document {
+export interface IWitness extends SqlDocument {
   civility: 'M.' | 'Mme' | 'Mlle'
   fullName: string
   cniEncrypted: string
@@ -13,23 +13,17 @@ export interface IWitness extends Document {
   getPhone(): string
 }
 
-const WitnessSchema = new Schema<IWitness>(
-  {
-    civility: { type: String, enum: ['M.', 'Mme', 'Mlle'], required: true, default: 'M.' },
-    fullName: { type: String, required: true, trim: true, index: true },
-    cniEncrypted: { type: String, required: true },
-    phoneEncrypted: { type: String, required: true },
-    isArchived: { type: Boolean, default: false, index: true }
+export const Witness = defineSqlModel<IWitness>('Witness', {
+  civility: { type: sqlTypes.ENUM('M.', 'Mme', 'Mlle'), allowNull: false, defaultValue: 'M.' },
+  fullName: { type: sqlTypes.STRING, allowNull: false },
+  cniEncrypted: { type: sqlTypes.TEXT, allowNull: false },
+  phoneEncrypted: { type: sqlTypes.TEXT, allowNull: false },
+  isArchived: { type: sqlTypes.BOOLEAN, allowNull: false, defaultValue: false }
+}, { tableName: 'witnesses', indexes: [{ fields: ['fullName'] }, { fields: ['isArchived'] }] }, {
+  getCni(this: IWitness): string {
+    return decryptField(this.cniEncrypted)
   },
-  { timestamps: true }
-)
-
-WitnessSchema.methods.getCni = function(): string {
-  return decryptField(this.cniEncrypted)
-}
-
-WitnessSchema.methods.getPhone = function(): string {
-  return decryptField(this.phoneEncrypted)
-}
-
-export const Witness: Model<IWitness> = mongoose.models.Witness || mongoose.model<IWitness>('Witness', WitnessSchema)
+  getPhone(this: IWitness): string {
+    return decryptField(this.phoneEncrypted)
+  }
+})

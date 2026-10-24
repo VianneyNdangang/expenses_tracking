@@ -1,26 +1,22 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
-export interface ISession extends Document {
+export interface ISession extends SqlDocument {
   tokenHash: string
-  userId: Types.ObjectId
+  userId: string
   ip: string
   userAgent: string
   expiresAt: Date
   createdAt: Date
 }
 
-const SessionSchema = new Schema<ISession>(
-  {
-    tokenHash: { type: String, required: true, unique: true, index: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    ip: { type: String, default: '' },
-    userAgent: { type: String, default: '' },
-    expiresAt: { type: Date, required: true }
-  },
-  { timestamps: { createdAt: true, updatedAt: false } }
-)
-
-// Index TTL : MongoDB supprime automatiquement les sessions expirées
-SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
-
-export const Session: Model<ISession> = mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema)
+export const Session = defineSqlModel<ISession>('Session', {
+  tokenHash: { type: sqlTypes.STRING(64), allowNull: false, unique: true },
+  userId: { type: sqlTypes.UUID, allowNull: false },
+  ip: { type: sqlTypes.STRING, allowNull: false, defaultValue: '' },
+  userAgent: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' },
+  expiresAt: { type: sqlTypes.DATE, allowNull: false }
+}, {
+  tableName: 'sessions',
+  updatedAt: false,
+  indexes: [{ fields: ['tokenHash'], unique: true }, { fields: ['userId'] }, { fields: ['expiresAt'] }]
+})

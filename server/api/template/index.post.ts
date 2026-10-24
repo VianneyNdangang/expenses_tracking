@@ -41,21 +41,14 @@ export default defineEventHandler(async (event) => {
     const nextVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 1
 
     // Désactiver les versions antérieures
-    await LetterTemplate.updateMany({}, { $set: { isActive: false } }, { session })
+    await LetterTemplate.updateMany({}, { $set: { isActive: false } }, { transaction: session })
 
     // Créer la nouvelle version active
-    const created = await LetterTemplate.create(
-      [
-        {
-          version: nextVersion,
-          content,
-          isActive: true
-        }
-      ],
-      { session }
-    )
-
-    return created[0]
+    return LetterTemplate.create({
+      version: nextVersion,
+      content,
+      isActive: true
+    }, { transaction: session })
   })
 
   await logAudit(event, {

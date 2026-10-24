@@ -1,36 +1,28 @@
-import mongoose, { Schema, Document, Model } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
-export interface ISettings extends Document {
+export interface ISettings extends SqlDocument {
   patronCivility: 'M.' | 'Mme'
   patronName: string
   patronPhone: string
   patronAddress: string
   defaultCity: string
   justificationDelayDays: number
-  toleranceThreshold: number // par exemple 10 (pour 10%)
-  suspectThreshold: number // par exemple 20 (pour 20%)
+  toleranceThreshold: number
+  suspectThreshold: number
   updatedAt: Date
 }
 
-const SettingsSchema = new Schema<ISettings>(
-  {
-    patronCivility: { type: String, enum: ['M.', 'Mme'], default: 'M.' },
-    patronName: { type: String, default: 'M. Abdouraman' },
-    patronPhone: { type: String, default: '+237 600 00 00 00' },
-    patronAddress: { type: String, default: 'Yaoundé, Cameroun' },
-    defaultCity: { type: String, default: 'Yaoundé' },
-    justificationDelayDays: { type: Number, default: 7 },
-    toleranceThreshold: { type: Number, default: 10 },
-    suspectThreshold: { type: Number, default: 20 }
-  },
-  { timestamps: { createdAt: false, updatedAt: true } }
-)
+export const Settings = defineSqlModel<ISettings>('Settings', {
+  patronCivility: { type: sqlTypes.ENUM('M.', 'Mme'), allowNull: false, defaultValue: 'M.' },
+  patronName: { type: sqlTypes.STRING, allowNull: false, defaultValue: 'M. Abdouraman' },
+  patronPhone: { type: sqlTypes.STRING, allowNull: false, defaultValue: '+237 600 00 00 00' },
+  patronAddress: { type: sqlTypes.STRING, allowNull: false, defaultValue: 'Yaoundé, Cameroun' },
+  defaultCity: { type: sqlTypes.STRING, allowNull: false, defaultValue: 'Yaoundé' },
+  justificationDelayDays: { type: sqlTypes.INTEGER, allowNull: false, defaultValue: 7 },
+  toleranceThreshold: { type: sqlTypes.DOUBLE, allowNull: false, defaultValue: 10 },
+  suspectThreshold: { type: sqlTypes.DOUBLE, allowNull: false, defaultValue: 20 }
+}, { tableName: 'settings', createdAt: false, updatedAt: true })
 
-export const Settings: Model<ISettings> = mongoose.models.Settings || mongoose.model<ISettings>('Settings', SettingsSchema)
-
-/**
- * Récupère ou initialise les paramètres uniques de l'application.
- */
 export async function getOrCreateSettings(): Promise<ISettings> {
   let settings = await Settings.findOne()
   if (!settings) {

@@ -1,6 +1,6 @@
 # Plateforme de Contrôle des Dépenses — Abdouraman Expenses
 
-Solution complète, souveraine et hautement sécurisée de gestion et de contrôle des dépenses de chantier et d'approvisionnement pour chef d'entreprise (mono-utilisateur / patron), développée avec **Nuxt 4**, **Nuxt UI**, **Nitro** et **MongoDB Replica Set**.
+Solution complète, souveraine et hautement sécurisée de gestion et de contrôle des dépenses de chantier et d'approvisionnement pour chef d'entreprise (mono-utilisateur / patron), développée avec **Nuxt 4**, **Nuxt UI**, **Nitro** et **MySQL 8**.
 
 ---
 
@@ -23,9 +23,9 @@ Cette plateforme permet au patron :
 L'application respecte les principes de sécurité les plus stricts :
 
 - **Authentification par hachage Argon2id** : Protection maximale contre les attaques par force brute et par dictionnaire avec coût mémoire calibré.
-- **Gestion des sessions sans JWT client** : Cookie de session `abd_session_id` configuré en `HttpOnly`, `SameSite=Strict`, `Secure` (en production), avec identifiant opaque et index d'expiration TTL automatique en base MongoDB.
+- **Gestion des sessions sans JWT client** : Cookie de session `abd_session_id` configuré en `HttpOnly`, `SameSite=Strict`, `Secure` (en production), avec identifiant opaque et expiration contrôlée par l'application en base MySQL.
 - **Chiffrement fort des données personnelles (AES-256-GCM)** : Les numéros de CNI et téléphones des employés et des témoins sont systématiquement chiffrés au repos en base de données. Seuls les 4 derniers chiffres sont visibles à l'écran sous forme masquée (`•••• 1234`).
-- **Transactions multi-documents ACID** : Tous les flux financiers (création d'engagement avec compteur séquentiel, paiement, justification avec reliquat) sont exécutés dans des sessions transactionnelles Mongoose pour garantir une cohérence absolue sans aucun risque d'incohérence ou de doublon.
+- **Transactions ACID** : Les flux financiers (création d'engagement avec compteur séquentiel, paiement, justification avec reliquat) utilisent des transactions MySQL.
 - **Protection CSRF & En-têtes stricts** : Vérification des requêtes de mutation (`POST`, `PUT`, `PATCH`, `DELETE`) et en-têtes HTTP de sécurité (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
 - **Journal d'audit non modifiable** : Traçabilité intégrale de toutes les opérations patronales (action, entité, horodatage, adresse IP, User-Agent, instantanés avant/après).
 
@@ -38,7 +38,7 @@ L'application respecte les principes de sécurité les plus stricts :
 | **Framework Fullstack** | [Nuxt 4](https://nuxt.com/) | Architecture SSR/Nitro moderne avec rendu optimisé |
 | **Composants & Design** | [Nuxt UI](https://ui.nuxt.com/) + Tailwind CSS | Interface épurée, responsive, accessible, mode sombre/clair |
 | **Typographie** | Google Font *Public Sans* | Typographie institutionnelle, sobre et hautement lisible |
-| **Base de données** | [MongoDB 7.0+](https://www.mongodb.com/) (Replica Set) | Support complet des transactions multi-documents ACID |
+| **Base de données** | [MySQL 8.0+](https://www.mysql.com/) | Stockage relationnel et transactions ACID |
 | **Validation de données** | [Zod](https://zod.dev/) | Validation isomorphique partagée entre le frontend et l'API Nitro |
 | **Chiffrement & Sécurité** | Node.js `crypto` + `argon2` | AES-256-GCM (clé 256 bits) et Argon2id |
 | **Exports & Rapports** | [SheetJS (xlsx)](https://sheetjs.com/) | Génération directe de classeurs Excel (.xlsx) et fichiers CSV |
@@ -50,7 +50,7 @@ L'application respecte les principes de sécurité les plus stricts :
 
 - **Node.js** : version 20.x ou supérieure (Node 22 recommandé)
 - **Gestionnaire de paquets** : **`npm`** *(utilisation stricte de npm)*
-- **Docker & Docker Compose** (optionnel pour MongoDB Replica Set dédié, sinon un Replica Set en mémoire démarre automatiquement)
+- **MySQL 8.0+** (installation locale ou conteneur Docker Compose fourni)
 
 ---
 
@@ -72,17 +72,20 @@ cp .env.example .env
 Vérifiez ou adaptez les variables dans `.env` :
 ```env
 PORT=3000
-MONGODB_URI=mongodb://127.0.0.1:27017/controle_depense?replicaSet=rs0
-ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=controle_depense
+DB_USER=root
+DB_PASSWORD=changez_ce_mot_de_passe
+FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 SESSION_SECRET=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
-PATRON_INITIAL_PASSWORD=Patron@2026!
 NODE_ENV=development
 ```
 
-> **Note de commodité en développement** : Si aucun serveur MongoDB local n'est détecté, un **Replica Set MongoDB en mémoire** (`mongodb-memory-server`) est automatiquement instancié en arrière-plan avec initialisation transparente des données de référence.
+> La base MySQL doit être démarrée avant le serveur. Au premier démarrage, l'application crée ses tables et initialise les données de référence. Les données MongoDB existantes ne sont pas transférées.
 
-### 3. Démarrer MongoDB avec Docker (optionnel)
-Si vous souhaitez utiliser un conteneur Docker avec un véritable Replica Set local persistant :
+### 3. Démarrer MySQL avec Docker
+Le fichier Compose démarre MySQL et conserve les données dans un volume Docker :
 ```bash
 docker compose up -d
 ```
@@ -112,8 +115,8 @@ Lors du premier lancement ou après exécution du script de seed :
 | `npm run preview` | Prévisualise la version de production compilée |
 | `npm run test` | Exécute la suite complète des 24 tests Vitest (unitaires + cycle E2E) |
 | `npm run seed` | Réinitialise et alimente la base de données avec des données de référence complètes |
-| `npm run backup` | Exporte l'ensemble des collections MongoDB dans un fichier JSON horodaté (`backups/`) |
-| `npm run restore` | Restaure la dernière sauvegarde JSON dans la base de données (ou via `--file <chemin>`) |
+| `npm run backup` | Exporte les tables MySQL dans un fichier JSON horodaté (`backups/`) |
+| `npm run restore` | Restaure la dernière sauvegarde JSON MySQL (ou via `--file <chemin>`) |
 
 ---
 

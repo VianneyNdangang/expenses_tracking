@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
-export interface IItemPrice extends Document {
-  itemId: Types.ObjectId
+export interface IItemPrice extends SqlDocument {
+  itemId: string
   referencePrice: number
   tolerancePercent: number
   startDate: Date
@@ -10,19 +10,15 @@ export interface IItemPrice extends Document {
   createdAt: Date
 }
 
-const ItemPriceSchema = new Schema<IItemPrice>(
-  {
-    itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true, index: true },
-    referencePrice: { type: Number, required: true }, // Entier en FCFA
-    tolerancePercent: { type: Number, required: true, default: 10 },
-    startDate: { type: Date, required: true, default: Date.now },
-    endDate: { type: Date, default: null },
-    notes: { type: String, default: '' }
-  },
-  { timestamps: { createdAt: true, updatedAt: false } }
-)
-
-// Index pour trouver rapidement le prix actif d'un article
-ItemPriceSchema.index({ itemId: 1, endDate: 1 })
-
-export const ItemPrice: Model<IItemPrice> = mongoose.models.ItemPrice || mongoose.model<IItemPrice>('ItemPrice', ItemPriceSchema)
+export const ItemPrice = defineSqlModel<IItemPrice>('ItemPrice', {
+  itemId: { type: sqlTypes.UUID, allowNull: false },
+  referencePrice: { type: sqlTypes.DOUBLE, allowNull: false },
+  tolerancePercent: { type: sqlTypes.DOUBLE, allowNull: false, defaultValue: 10 },
+  startDate: { type: sqlTypes.DATE, allowNull: false, defaultValue: sqlTypes.NOW },
+  endDate: { type: sqlTypes.DATE, allowNull: true, defaultValue: null },
+  notes: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' }
+}, {
+  tableName: 'item_prices',
+  updatedAt: false,
+  indexes: [{ fields: ['itemId', 'endDate'] }]
+})

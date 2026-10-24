@@ -1,29 +1,23 @@
 version: '3.8'
 
 services:
-  mongo:
-    image: mongo:7.0
-    container_name: abdouraman_mongo
-    restart: always
+  mysql:
+    image: mysql:8.4
+    container_name: abdouraman_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-controle_depense}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-changez_ce_mot_de_passe}
     ports:
-      - "27017:27017"
-    entrypoint:
-      - bash
-      - -c
-      - |
-        openssl rand -base64 756 > /tmp/mongo-keyfile
-        chmod 400 /tmp/mongo-keyfile
-        chown 999:999 /tmp/mongo-keyfile
-        exec mongod --replSet rs0 --bind_ip_all --keyFile /tmp/mongo-keyfile
+      - "${DB_PORT:-3306}:3306"
     volumes:
-      - mongo_data:/data/db
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) }" | mongosh --port 27017 --quiet
-      interval: 5s
-      timeout: 30s
-      start_period: 5s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  mongo_data:
+  mysql_data:
     driver: local

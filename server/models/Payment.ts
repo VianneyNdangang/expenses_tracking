@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
-export interface IPayment extends Document {
-  commitmentId: Types.ObjectId
+export interface IPayment extends SqlDocument {
+  commitmentId: string
   amount: number
   date: Date
   method: 'Espèces' | 'Virement' | 'Chèque' | 'Mobile Money' | 'Autre'
@@ -10,21 +10,11 @@ export interface IPayment extends Document {
   createdAt: Date
 }
 
-const PaymentSchema = new Schema<IPayment>(
-  {
-    commitmentId: { type: Schema.Types.ObjectId, ref: 'Commitment', required: true, index: true },
-    amount: { type: Number, required: true },
-    date: { type: Date, required: true, default: Date.now },
-    method: {
-      type: String,
-      enum: ['Espèces', 'Virement', 'Chèque', 'Mobile Money', 'Autre'],
-      required: true,
-      default: 'Espèces'
-    },
-    reference: { type: String, default: '' },
-    notes: { type: String, default: '' }
-  },
-  { timestamps: { createdAt: true, updatedAt: false } }
-)
-
-export const Payment: Model<IPayment> = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema)
+export const Payment = defineSqlModel<IPayment>('Payment', {
+  commitmentId: { type: sqlTypes.UUID, allowNull: false },
+  amount: { type: sqlTypes.DOUBLE, allowNull: false },
+  date: { type: sqlTypes.DATE, allowNull: false, defaultValue: sqlTypes.NOW },
+  method: { type: sqlTypes.ENUM('Espèces', 'Virement', 'Chèque', 'Mobile Money', 'Autre'), allowNull: false, defaultValue: 'Espèces' },
+  reference: { type: sqlTypes.STRING, allowNull: false, defaultValue: '' },
+  notes: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' }
+}, { tableName: 'payments', updatedAt: false, indexes: [{ fields: ['commitmentId'] }] })

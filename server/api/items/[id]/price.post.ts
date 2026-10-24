@@ -34,25 +34,18 @@ export default defineEventHandler(async (event) => {
     await ItemPrice.updateMany(
       { itemId: item._id, endDate: null },
       { $set: { endDate: now } },
-      { session }
+      { transaction: session }
     )
 
     // Créer le nouveau prix actif
-    const created = await ItemPrice.create(
-      [
-        {
-          itemId: item._id,
-          referencePrice,
-          tolerancePercent,
-          startDate: now,
-          endDate: null,
-          notes: notes || 'Mise à jour du prix de référence'
-        }
-      ],
-      { session }
-    )
-
-    return created[0]
+    return ItemPrice.create({
+      itemId: item._id,
+      referencePrice,
+      tolerancePercent,
+      startDate: now,
+      endDate: null,
+      notes: notes || 'Mise à jour du prix de référence'
+    }, { transaction: session })
   })
 
   await logAudit(event, {

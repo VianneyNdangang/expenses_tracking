@@ -1,6 +1,6 @@
-import mongoose, { Schema, Document, Model } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
-export interface IItem extends Document {
+export interface IItem extends SqlDocument {
   name: string
   unit: string
   notes?: string
@@ -9,14 +9,9 @@ export interface IItem extends Document {
   updatedAt: Date
 }
 
-const ItemSchema = new Schema<IItem>(
-  {
-    name: { type: String, required: true, trim: true, unique: true },
-    unit: { type: String, required: true, trim: true },
-    notes: { type: String, default: '' },
-    isArchived: { type: Boolean, default: false, index: true }
-  },
-  { timestamps: true }
-)
-
-export const Item: Model<IItem> = mongoose.models.Item || mongoose.model<IItem>('Item', ItemSchema)
+export const Item = defineSqlModel<IItem>('Item', {
+  name: { type: sqlTypes.STRING, allowNull: false, unique: true },
+  unit: { type: sqlTypes.STRING, allowNull: false },
+  notes: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' },
+  isArchived: { type: sqlTypes.BOOLEAN, allowNull: false, defaultValue: false }
+}, { tableName: 'items', indexes: [{ fields: ['isArchived'] }] })

@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     userId: user._id
   })
 
-  if (result.deletedCount === 0) {
+  if (result === 0) {
     throw createError({
       statusCode: 404,
       statusMessage: 'Session introuvable'

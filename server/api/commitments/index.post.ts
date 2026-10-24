@@ -116,38 +116,31 @@ export default defineEventHandler(async (event) => {
   // 6. Enregistrement transactionnel avec compteur séquentiel
   const createdCommitment = await withTransaction(async (session) => {
     let seq = await getNextSequence('commitment_number', session)
-    let exists = await Commitment.exists({ seq }).session(session || null)
+    let exists = await Commitment.exists({ seq }).session(session)
     while (exists) {
       seq = await getNextSequence('commitment_number', session)
-      exists = await Commitment.exists({ seq }).session(session || null)
+      exists = await Commitment.exists({ seq }).session(session)
     }
     const letterNumber = `ENG-${currentYear}-${String(seq).padStart(4, '0')}`
 
-    const doc = await Commitment.create(
-      [
-        {
-          type,
-          letterNumber,
-          seq,
-          workerId: worker._id,
-          workerSnapshot,
-          purpose,
-          city: city || settings.defaultCity,
-          date: commitmentDate,
-          templateVersion,
-          witnesses: witnessesSnapshot,
-          items: frozenLines,
-          amountRequested: totalRequested,
-          amountApproved: 0,
-          status: 'Demandé',
-          notes: notes || '',
-          isCancelled: false
-        }
-      ],
-      { session }
-    )
-
-    return doc[0]
+    return Commitment.create({
+      type,
+      letterNumber,
+      seq,
+      workerId: worker._id,
+      workerSnapshot,
+      purpose,
+      city: city || settings.defaultCity,
+      date: commitmentDate,
+      templateVersion,
+      witnesses: witnessesSnapshot,
+      items: frozenLines,
+      amountRequested: totalRequested,
+      amountApproved: 0,
+      status: 'Demandé',
+      notes: notes || '',
+      isCancelled: false
+    }, { transaction: session })
   })
 
   await logAudit(event, {

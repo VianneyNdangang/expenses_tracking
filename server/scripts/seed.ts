@@ -1,7 +1,6 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import mongoose from 'mongoose'
 import { connectToDatabase } from '../utils/db'
 import { hashPassword, encryptField } from '../utils/crypto'
 import { User } from '../models/User'

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
 export interface IAttachment {
   name: string
@@ -7,36 +7,25 @@ export interface IAttachment {
   mimeType: string
 }
 
-export interface IJustification extends Document {
-  commitmentId: Types.ObjectId
-  amountSpent: number // montant réellement dépensé
-  balance: number // reliquat = montant payé - montant dépensé (peut être négatif en cas de dépassement)
+export interface IJustification extends SqlDocument {
+  commitmentId: string
+  amountSpent: number
+  balance: number
   notes?: string
   attachments: IAttachment[]
   date: Date
   createdAt: Date
 }
 
-const AttachmentSchema = new Schema<IAttachment>(
-  {
-    name: { type: String, required: true },
-    url: { type: String, required: true },
-    size: { type: Number, required: true },
-    mimeType: { type: String, required: true }
-  },
-  { _id: false }
-)
-
-const JustificationSchema = new Schema<IJustification>(
-  {
-    commitmentId: { type: Schema.Types.ObjectId, ref: 'Commitment', required: true, unique: true, index: true },
-    amountSpent: { type: Number, required: true },
-    balance: { type: Number, required: true },
-    notes: { type: String, default: '' },
-    attachments: [AttachmentSchema],
-    date: { type: Date, required: true, default: Date.now }
-  },
-  { timestamps: { createdAt: true, updatedAt: false } }
-)
-
-export const Justification: Model<IJustification> = mongoose.models.Justification || mongoose.model<IJustification>('Justification', JustificationSchema)
+export const Justification = defineSqlModel<IJustification>('Justification', {
+  commitmentId: { type: sqlTypes.UUID, allowNull: false, unique: true },
+  amountSpent: { type: sqlTypes.DOUBLE, allowNull: false },
+  balance: { type: sqlTypes.DOUBLE, allowNull: false },
+  notes: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' },
+  attachments: { type: sqlTypes.JSON, allowNull: false, defaultValue: [] },
+  date: { type: sqlTypes.DATE, allowNull: false, defaultValue: sqlTypes.NOW }
+}, {
+  tableName: 'justifications',
+  updatedAt: false,
+  indexes: [{ fields: ['commitmentId'], unique: true }]
+})

@@ -28,24 +28,18 @@ export default defineEventHandler(async (event) => {
   }
 
   const result = await withTransaction(async (session) => {
-    const item = await Item.create([{ name, unit, notes, isArchived: false }], { session })
-    const createdItem = item[0]
+    const createdItem = await Item.create({ name, unit, notes, isArchived: false }, { transaction: session })
 
-    const itemPrice = await ItemPrice.create(
-      [
-        {
-          itemId: createdItem._id,
-          referencePrice,
-          tolerancePercent,
-          startDate: new Date(),
-          endDate: null,
-          notes: 'Prix initial de référence'
-        }
-      ],
-      { session }
-    )
+    const itemPrice = await ItemPrice.create({
+      itemId: createdItem._id,
+      referencePrice,
+      tolerancePercent,
+      startDate: new Date(),
+      endDate: null,
+      notes: 'Prix initial de référence'
+    }, { transaction: session })
 
-    return { item: createdItem, price: itemPrice[0] }
+    return { item: createdItem, price: itemPrice }
   })
 
   await logAudit(event, {

@@ -1,32 +1,43 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import mongoose from 'mongoose'
 import { connectToDatabase } from '../utils/db'
+import { sequelize } from '../utils/sequelize'
+
+const TABLES = [
+  'users',
+  'settings',
+  'letter_templates',
+  'items',
+  'item_prices',
+  'workers',
+  'witnesses',
+  'commitments',
+  'payments',
+  'justifications',
+  'counters',
+  'sessions',
+  'audit_logs'
+]
 
 async function runRestore() {
-  console.log('🔄 Démarrage de la restauration de la base de données...')
+  console.log('🔄 Démarrage de la restauration MySQL...')
 
-  // Chargement de l'environnement si disponible
   if (typeof process.loadEnvFile === 'function' && fs.existsSync('.env')) {
     process.loadEnvFile('.env')
   }
 
   const args = process.argv.slice(2)
   let backupFilePath = ''
-
   const fileArgIndex = args.indexOf('--file')
   if (fileArgIndex !== -1 && args[fileArgIndex + 1]) {
     backupFilePath = path.resolve(process.cwd(), args[fileArgIndex + 1])
   } else {
-    // Prendre le fichier de sauvegarde le plus récent dans ./backups/
     const backupDir = path.resolve(process.cwd(), 'backups')
     if (fs.existsSync(backupDir)) {
-      const files = fs
-        .readdirSync(backupDir)
-        .filter((f) => f.startsWith('backup-') && f.endsWith('.json'))
+      const files = fs.readdirSync(backupDir)
+        .filter(file => file.startsWith('backup-') && file.endsWith('.json'))
         .sort()
         .reverse()
-
       if (files.length > 0) {
         backupFilePath = path.join(backupDir, files[0])
       }
@@ -34,41 +45,38 @@ async function runRestore() {
   }
 
   if (!backupFilePath || !fs.existsSync(backupFilePath)) {
-    console.error('❌ Aucun fichier de sauvegarde valide trouvé. Utilisez --file <chemin>')
-    process.exit(1)
+    throw new Error('Aucune sauvegarde valide trouvée. Utilisez --file <chemin>.')
   }
 
-  console.log(`📄 Lecture de la sauvegarde : ${backupFilePath}`)
-  const rawData = fs.readFileSync(backupFilePath, 'utf-8')
-  const backupData: Record<string, any[]> = JSON.parse(rawData)
+  const backupData: unknown = JSON.parse(fs.readFileSync(backupFilePath, 'utf-8'))
+  if (!backupData || typeof backupData !== 'object' || Array.isArray(backupData)) {
+    throw new Error('Le fichier de sauvegarde doit contenir un objet de tables.')
+  }
 
   await connectToDatabase()
+  const queryInterface = sequelize.getQueryInterface()
+  await sequelize.transaction(async (transaction) => {
+    for (const table of TABLES) {
+      const records = (backupData as Record<string, unknown>)[table]
+      if (records === undefined) continue
+      if (!Array.isArray(records) || records.some(record => !record || typeof record !== 'object' || Array.isArray(record))) {
+        throw new Error(`La sauvegarde contient des données invalides pour la table "${table}".`)
+      }
 
-  const db = mongoose.connection.db
-  if (!db) {
-    throw new Error('Connexion à la base de données impossible.')
-  }
-
-  for (const [collName, docs] of Object.entries(backupData)) {
-    if (!Array.isArray(docs) || docs.length === 0) continue
-
-    try {
-      const collection = db.collection(collName)
-      await collection.deleteMany({}) // Nettoyage de la collection existante
-      await collection.insertMany(docs)
-      console.log(`  ✓ Collection "${collName}": ${docs.length} document(s) restauré(s)`)
-    } catch (err: any) {
-      console.error(`  ❌ Erreur lors de la restauration de "${collName}":`, err.message)
+      await queryInterface.bulkDelete(table, {}, { transaction })
+      if (records.length > 0) {
+        await queryInterface.bulkInsert(table, records as Array<Record<string, unknown>>, { transaction })
+      }
+      console.log(`  ✓ Table "${table}": ${records.length} ligne(s) restaurée(s)`)
     }
-  }
+  })
 
-  console.log(`\n🎉 Restauration terminée avec succès depuis ${path.basename(backupFilePath)} !`)
-
-  await mongoose.disconnect()
-  process.exit(0)
+  console.log(`\n🎉 Restauration terminée depuis ${path.basename(backupFilePath)}.`)
+  await sequelize.close()
 }
 
-runRestore().catch((err) => {
+runRestore().catch(async (err: unknown) => {
   console.error('❌ Échec de la restauration :', err)
-  process.exit(1)
+  await sequelize.close()
+  process.exitCode = 1
 })

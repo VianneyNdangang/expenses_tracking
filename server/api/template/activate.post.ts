@@ -29,11 +29,11 @@ export default defineEventHandler(async (event) => {
 
   await withTransaction(async (session) => {
     // 1. Désactiver tous les modèles existants
-    await LetterTemplate.updateMany({}, { $set: { isActive: false } }, { session })
+    await LetterTemplate.updateMany({}, { $set: { isActive: false } }, { transaction: session })
 
     // 2. Activer le modèle sélectionné
     targetTemplate.isActive = true
-    await targetTemplate.save({ session })
+    await targetTemplate.save({ transaction: session })
   })
 
   await logAudit(event, {

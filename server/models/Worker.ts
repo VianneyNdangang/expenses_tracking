@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document, Model } from 'mongoose'
-import { encryptField, decryptField } from '../utils/crypto'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
+import { decryptField } from '../utils/crypto'
 
-export interface IWorker extends Document {
+export interface IWorker extends SqlDocument {
   civility: 'M.' | 'Mme' | 'Mlle'
   fullName: string
   cniEncrypted: string
@@ -9,28 +9,21 @@ export interface IWorker extends Document {
   isArchived: boolean
   createdAt: Date
   updatedAt: Date
-  // Getters virtuels pour déchiffrer
   getCni(): string
   getPhone(): string
 }
 
-const WorkerSchema = new Schema<IWorker>(
-  {
-    civility: { type: String, enum: ['M.', 'Mme', 'Mlle'], required: true, default: 'M.' },
-    fullName: { type: String, required: true, trim: true, index: true },
-    cniEncrypted: { type: String, required: true },
-    phoneEncrypted: { type: String, required: true },
-    isArchived: { type: Boolean, default: false, index: true }
+export const Worker = defineSqlModel<IWorker>('Worker', {
+  civility: { type: sqlTypes.ENUM('M.', 'Mme', 'Mlle'), allowNull: false, defaultValue: 'M.' },
+  fullName: { type: sqlTypes.STRING, allowNull: false },
+  cniEncrypted: { type: sqlTypes.TEXT, allowNull: false },
+  phoneEncrypted: { type: sqlTypes.TEXT, allowNull: false },
+  isArchived: { type: sqlTypes.BOOLEAN, allowNull: false, defaultValue: false }
+}, { tableName: 'workers', indexes: [{ fields: ['fullName'] }, { fields: ['isArchived'] }] }, {
+  getCni(this: IWorker): string {
+    return decryptField(this.cniEncrypted)
   },
-  { timestamps: true }
-)
-
-WorkerSchema.methods.getCni = function(): string {
-  return decryptField(this.cniEncrypted)
-}
-
-WorkerSchema.methods.getPhone = function(): string {
-  return decryptField(this.phoneEncrypted)
-}
-
-export const Worker: Model<IWorker> = mongoose.models.Worker || mongoose.model<IWorker>('Worker', WorkerSchema)
+  getPhone(this: IWorker): string {
+    return decryptField(this.phoneEncrypted)
+  }
+})

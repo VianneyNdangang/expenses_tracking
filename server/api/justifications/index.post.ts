@@ -40,26 +40,21 @@ export default defineEventHandler(async (event) => {
   const balance = amountPaid - amountSpent
   const justificationDate = date ? new Date(date) : new Date()
 
-  // Transaction MongoDB (Replica Set) : enregistrement de la justification + passage au statut 'Justifié'
+  // Transaction MySQL : enregistrement de la justification et changement de statut
   const justificationDoc = await withTransaction(async (session) => {
-    const created = await Justification.create(
-      [
-        {
-          commitmentId: commitment._id,
-          amountSpent,
-          balance,
-          notes: notes || '',
-          date: justificationDate,
-          attachments: []
-        }
-      ],
-      { session }
-    )
+    const created = await Justification.create({
+      commitmentId: commitment._id,
+      amountSpent,
+      balance,
+      notes: notes || '',
+      date: justificationDate,
+      attachments: []
+    }, { transaction: session })
 
     commitment.status = 'Justifié'
-    await commitment.save({ session })
+    await commitment.save({ transaction: session })
 
-    return created[0]
+    return created
   })
 
   await logAudit(event, {

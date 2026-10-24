@@ -1,9 +1,9 @@
-import mongoose, { Schema, Document, Model, Types } from 'mongoose'
+import { defineSqlModel, sqlTypes, type SqlDocument } from '../utils/sqlModel'
 
 export type CommitmentType = 'MATERIEL' | 'PRET' | 'SALAIRE' | 'AUTRE'
 
 export interface ICommitmentLine {
-  itemId: Types.ObjectId
+  itemId: string
   name: string
   unit: string
   quantity: number
@@ -17,18 +17,18 @@ export interface ICommitmentLine {
 }
 
 export interface ICommitmentWitness {
-  witnessId: Types.ObjectId
+  witnessId: string
   civility: string
   fullName: string
   cniMasked: string
   phoneMasked: string
 }
 
-export interface ICommitment extends Document {
+export interface ICommitment extends SqlDocument {
   type: CommitmentType
   letterNumber: string
   seq: number
-  workerId: Types.ObjectId
+  workerId: string
   workerSnapshot: {
     civility: string
     fullName: string
@@ -54,75 +54,28 @@ export interface ICommitment extends Document {
   updatedAt: Date
 }
 
-const CommitmentLineSchema = new Schema<ICommitmentLine>(
-  {
-    itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
-    name: { type: String, required: true },
-    unit: { type: String, required: true },
-    quantity: { type: Number, required: true },
-    unitPriceDeclared: { type: Number, required: true },
-    totalPriceDeclared: { type: Number, required: true },
-    referenceUnitPrice: { type: Number, required: true },
-    tolerancePercent: { type: Number, required: true },
-    differenceValue: { type: Number, required: true },
-    differencePercent: { type: Number, required: true },
-    status: { type: String, enum: ['conforme', 'a_verifier', 'suspect'], required: true }
-  },
-  { _id: false }
-)
-
-const CommitmentWitnessSchema = new Schema<ICommitmentWitness>(
-  {
-    witnessId: { type: Schema.Types.ObjectId, ref: 'Witness', required: true },
-    civility: { type: String, required: true },
-    fullName: { type: String, required: true },
-    cniMasked: { type: String, required: true },
-    phoneMasked: { type: String, required: true }
-  },
-  { _id: false }
-)
-
-const CommitmentSchema = new Schema<ICommitment>(
-  {
-    type: {
-      type: String,
-      enum: ['MATERIEL', 'PRET', 'SALAIRE', 'AUTRE'],
-      required: true,
-      default: 'MATERIEL',
-      index: true
-    },
-    letterNumber: { type: String, required: true, unique: true, index: true },
-    seq: { type: Number, required: true, unique: true, index: true },
-    workerId: { type: Schema.Types.ObjectId, ref: 'Worker', required: true, index: true },
-    workerSnapshot: {
-      civility: { type: String, required: true },
-      fullName: { type: String, required: true },
-      cniMasked: { type: String, required: true },
-      phoneMasked: { type: String, required: true }
-    },
-    purpose: { type: String, required: true, trim: true, index: 'text' },
-    city: { type: String, required: true, trim: true },
-    date: { type: Date, required: true, default: Date.now },
-    templateVersion: { type: Number, required: true, default: 1 },
-    witnesses: [CommitmentWitnessSchema],
-    items: [CommitmentLineSchema],
-    amountRequested: { type: Number, required: true },
-    amountApproved: { type: Number, required: true, default: 0 },
-    status: {
-      type: String,
-      enum: ['Demandé', 'Accepté', 'Payé', 'Justifié', 'Refusé'],
-      required: true,
-      default: 'Demandé',
-      index: true
-    },
-    signedLetterScanUrl: { type: String },
-    signedLetterScanFilename: { type: String },
-    cancellationReason: { type: String },
-    isCancelled: { type: Boolean, default: false },
-    refusalReason: { type: String },
-    notes: { type: String, default: '' }
-  },
-  { timestamps: true }
-)
-
-export const Commitment: Model<ICommitment> = mongoose.models.Commitment || mongoose.model<ICommitment>('Commitment', CommitmentSchema)
+export const Commitment = defineSqlModel<ICommitment>('Commitment', {
+  type: { type: sqlTypes.ENUM('MATERIEL', 'PRET', 'SALAIRE', 'AUTRE'), allowNull: false, defaultValue: 'MATERIEL' },
+  letterNumber: { type: sqlTypes.STRING, allowNull: false, unique: true },
+  seq: { type: sqlTypes.INTEGER, allowNull: false, unique: true },
+  workerId: { type: sqlTypes.UUID, allowNull: false },
+  workerSnapshot: { type: sqlTypes.JSON, allowNull: false },
+  purpose: { type: sqlTypes.TEXT, allowNull: false },
+  city: { type: sqlTypes.STRING, allowNull: false },
+  date: { type: sqlTypes.DATE, allowNull: false, defaultValue: sqlTypes.NOW },
+  templateVersion: { type: sqlTypes.INTEGER, allowNull: false, defaultValue: 1 },
+  witnesses: { type: sqlTypes.JSON, allowNull: false, defaultValue: [] },
+  items: { type: sqlTypes.JSON, allowNull: false, defaultValue: [] },
+  amountRequested: { type: sqlTypes.DOUBLE, allowNull: false },
+  amountApproved: { type: sqlTypes.DOUBLE, allowNull: false, defaultValue: 0 },
+  status: { type: sqlTypes.ENUM('Demandé', 'Accepté', 'Payé', 'Justifié', 'Refusé'), allowNull: false, defaultValue: 'Demandé' },
+  signedLetterScanUrl: { type: sqlTypes.STRING, allowNull: true },
+  signedLetterScanFilename: { type: sqlTypes.STRING, allowNull: true },
+  cancellationReason: { type: sqlTypes.TEXT, allowNull: true },
+  isCancelled: { type: sqlTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  refusalReason: { type: sqlTypes.TEXT, allowNull: true },
+  notes: { type: sqlTypes.TEXT, allowNull: false, defaultValue: '' }
+}, {
+  tableName: 'commitments',
+  indexes: [{ fields: ['type'] }, { fields: ['letterNumber'], unique: true }, { fields: ['seq'], unique: true }, { fields: ['workerId'] }, { fields: ['status'] }]
+})

@@ -36,26 +36,21 @@ export default defineEventHandler(async (event) => {
 
   const paymentDate = date ? new Date(date) : new Date()
 
-  // Transaction MongoDB (Replica Set) : écriture atomique du paiement + transition du statut
+  // Transaction MySQL : écriture atomique du paiement et du changement de statut
   const paymentDoc = await withTransaction(async (session) => {
-    const created = await Payment.create(
-      [
-        {
-          commitmentId: commitment._id,
-          amount,
-          date: paymentDate,
-          method,
-          reference: reference || '',
-          notes: notes || ''
-        }
-      ],
-      { session }
-    )
+    const created = await Payment.create({
+      commitmentId: commitment._id,
+      amount,
+      date: paymentDate,
+      method,
+      reference: reference || '',
+      notes: notes || ''
+    }, { transaction: session })
 
     commitment.status = 'Payé'
-    await commitment.save({ session })
+    await commitment.save({ transaction: session })
 
-    return created[0]
+    return created
   })
 
   await logAudit(event, {
