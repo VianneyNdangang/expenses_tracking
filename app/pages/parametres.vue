@@ -2,12 +2,12 @@
 import {
   SettingsSchema,
   ChangePasswordSchema,
-  CreateUserSchema,
-  UpdateUserSchema,
-  USER_ROLES,
-  type UserRole,
   validateForm
 } from '~~/shared/schemas'
+import BossPasswordModal from '~/components/modals/settings/BossPasswordModal.vue'
+import UserCreateModal from '~/components/modals/settings/UserCreateModal.vue'
+import UserEditModal from '~/components/modals/settings/UserEditModal.vue'
+import UserDeleteModal from '~/components/modals/settings/UserDeleteModal.vue'
 
 useHead({
   title: 'Paramètres & Sécurité'
@@ -49,9 +49,6 @@ const { data: templateData, refresh: refreshTemplate } = await useFetch('/api/te
 const templateContent = ref('')
 const templateErrors = ref<Record<string, string>>({})
 const isPasswordConfirmModalOpen = ref(false)
-const patronPasswordConfirm = ref('')
-const passwordConfirmError = ref('')
-const createVersionLoading = ref(false)
 const activatingVersion = ref<number | null>(null)
 
 watch(templateData, (val) => {
@@ -65,131 +62,19 @@ const { data: usersData, refresh: refreshUsers } = await useFetch('/api/users')
 const usersList = computed(() => usersData.value?.users || [])
 
 const isCreateUserModalOpen = ref(false)
-const createUserForm = reactive({
-  username: '',
-  name: '',
-  role: 'SECRETAIRE' as UserRole,
-  password: ''
-})
-const createUserErrors = ref<Record<string, string>>({})
-const createUserLoading = ref(false)
 
 const isEditUserModalOpen = ref(false)
-const editUserForm = reactive({
-  id: '',
-  username: '',
-  name: '',
-  role: 'SECRETAIRE' as UserRole,
-  password: ''
-})
-const editUserErrors = ref<Record<string, string>>({})
-const editUserLoading = ref(false)
-
-const isDeleteUserModalOpen = ref(false)
-const userToDelete = ref<any>(null)
-const deleteUserLoading = ref(false)
-
-const openCreateUserModal = () => {
-  createUserForm.username = ''
-  createUserForm.name = ''
-  createUserForm.role = 'SECRETAIRE'
-  createUserForm.password = ''
-  createUserErrors.value = {}
-  isCreateUserModalOpen.value = true
-}
-
-const submitCreateUser = async () => {
-  createUserErrors.value = {}
-  const validation = validateForm(CreateUserSchema, createUserForm)
-  if (!validation.success) {
-    createUserErrors.value = validation.errors
-    return
-  }
-
-  createUserLoading.value = true
-  try {
-    await $fetch('/api/users', {
-      method: 'POST',
-      body: validation.data
-    })
-    successMsg.value = `Compte utilisateur "${createUserForm.name}" créé avec succès !`
-    isCreateUserModalOpen.value = false
-    await refreshUsers()
-  } catch (err: any) {
-    createUserErrors.value = {
-      username: err.data?.statusMessage || err.message || 'Erreur lors de la création du compte'
-    }
-  } finally {
-    createUserLoading.value = false
-  }
-}
-
+const selectedUserForEdit = ref<any>(null)
 const openEditUserModal = (targetUser: any) => {
-  editUserForm.id = targetUser.id
-  editUserForm.username = targetUser.username
-  editUserForm.name = targetUser.name
-  editUserForm.role = targetUser.role
-  editUserForm.password = ''
-  editUserErrors.value = {}
+  selectedUserForEdit.value = targetUser
   isEditUserModalOpen.value = true
 }
 
-const submitEditUser = async () => {
-  editUserErrors.value = {}
-  const payload: any = {
-    name: editUserForm.name,
-    role: editUserForm.role
-  }
-  if (editUserForm.password && editUserForm.password.trim().length > 0) {
-    payload.password = editUserForm.password
-  }
-
-  const validation = validateForm(UpdateUserSchema, payload)
-  if (!validation.success) {
-    editUserErrors.value = validation.errors
-    return
-  }
-
-  editUserLoading.value = true
-  try {
-    await $fetch(`/api/users/${editUserForm.id}`, {
-      method: 'PUT',
-      body: validation.data
-    })
-    successMsg.value = `Utilisateur "${editUserForm.name}" mis à jour avec succès !`
-    isEditUserModalOpen.value = false
-    await refreshUsers()
-  } catch (err: any) {
-    editUserErrors.value = {
-      name: err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour'
-    }
-  } finally {
-    editUserLoading.value = false
-  }
-}
-
+const isDeleteUserModalOpen = ref(false)
+const selectedUserForDelete = ref<any>(null)
 const openDeleteUserModal = (targetUser: any) => {
-  userToDelete.value = targetUser
+  selectedUserForDelete.value = targetUser
   isDeleteUserModalOpen.value = true
-}
-
-const submitDeleteUser = async () => {
-  if (!userToDelete.value) return
-  deleteUserLoading.value = true
-  try {
-    await $fetch(`/api/users/${userToDelete.value.id}`, {
-      method: 'DELETE'
-    })
-    successMsg.value = `L'utilisateur "${userToDelete.value.name}" a été supprimé avec succès.`
-    isDeleteUserModalOpen.value = false
-    userToDelete.value = null
-    await refreshUsers()
-  } catch (err: any) {
-    errorMsg.value = err.data?.statusMessage || err.message || 'Erreur lors de la suppression'
-    isDeleteUserModalOpen.value = false
-  } finally {
-    deleteUserLoading.value = false
-  }
 }
 
 // 4. Changement de mot de passe
@@ -260,38 +145,7 @@ const openPasswordConfirmModal = () => {
     return
   }
 
-  patronPasswordConfirm.value = ''
-  passwordConfirmError.value = ''
   isPasswordConfirmModalOpen.value = true
-}
-
-// Validation de la création de version avec vérification du mot de passe
-const submitCreateVersion = async () => {
-  passwordConfirmError.value = ''
-  if (!patronPasswordConfirm.value) {
-    passwordConfirmError.value = 'Veuillez saisir votre mot de passe pour confirmer'
-    return
-  }
-
-  createVersionLoading.value = true
-  try {
-    const res = await $fetch<{ success: boolean; message?: string; template: any }>('/api/template', {
-      method: 'POST',
-      body: {
-        content: templateContent.value,
-        password: patronPasswordConfirm.value
-      }
-    })
-
-    isPasswordConfirmModalOpen.value = false
-    patronPasswordConfirm.value = ''
-    successMsg.value = res.message || 'Nouvelle version du modèle créée et activée avec succès'
-    await refreshTemplate()
-  } catch (err: any) {
-    passwordConfirmError.value = err.data?.statusMessage || err.message || 'Mot de passe incorrect'
-  } finally {
-    createVersionLoading.value = false
-  }
 }
 
 // Basculer d'un modèle à l'autre (activer une version existante)
@@ -305,7 +159,6 @@ const activateTemplateVersion = async (version: number) => {
     })
     successMsg.value = res.message || `Le modèle v${version} a été activé avec succès`
     await refreshTemplate()
-    // Si on active un modèle, on met aussi à jour le texte dans l'éditeur
     const active = templateData.value?.templates?.find((t: any) => t.version === version)
     if (active) {
       templateContent.value = active.content
@@ -660,50 +513,40 @@ const formattedPreviewHtml = computed(() => {
 
     <!-- Navigation par Onglets -->
     <div class="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto">
-      <button
-        type="button"
-        class="h-7 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-xs inline-flex items-center justify-center font-semibold"
-        :class="activeTab === 'settings' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+      <AppButton
+        :variant="activeTab === 'settings' ? 'primary' : 'ghost'"
+        size="xs"
+        label="Coordonnées & Seuils"
         @click="activeTab = 'settings'"
-      >
-        Coordonnées & Seuils
-      </button>
+      />
 
-      <button
-        type="button"
-        class="h-7 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-xs inline-flex items-center justify-center font-semibold"
-        :class="activeTab === 'template' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+      <AppButton
+        :variant="activeTab === 'template' ? 'primary' : 'ghost'"
+        size="xs"
+        label="Modèles de Lettre & Versions"
         @click="activeTab = 'template'"
-      >
-        Modèles de Lettre & Versions
-      </button>
+      />
 
-      <button
-        type="button"
-        class="h-7 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-xs inline-flex items-center justify-center font-semibold"
-        :class="activeTab === 'users' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+      <AppButton
+        :variant="activeTab === 'users' ? 'primary' : 'ghost'"
+        size="xs"
+        :label="`Équipe & Rôles (${usersList?.length || 0})`"
         @click="activeTab = 'users'"
-      >
-        Équipe & Rôles ({{ usersList?.length || 0 }})
-      </button>
+      />
 
-      <button
-        type="button"
-        class="h-7 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-xs inline-flex items-center justify-center font-semibold"
-        :class="activeTab === 'security' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+      <AppButton
+        :variant="activeTab === 'security' ? 'primary' : 'ghost'"
+        size="xs"
+        label="Sécurité & Mot de passe"
         @click="activeTab = 'security'"
-      >
-        Sécurité & Mot de passe
-      </button>
+      />
 
-      <button
-        type="button"
-        class="h-7 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-xs inline-flex items-center justify-center font-semibold"
-        :class="activeTab === 'sessions' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+      <AppButton
+        :variant="activeTab === 'sessions' ? 'primary' : 'ghost'"
+        size="xs"
+        :label="`Sessions Actives (${sessions?.length || 0})`"
         @click="activeTab = 'sessions'"
-      >
-        Sessions Actives ({{ sessions?.length || 0 }})
-      </button>
+      />
     </div>
 
     <!-- Onglet 1 : Coordonnées Patron & Seuils -->
@@ -798,7 +641,7 @@ const formattedPreviewHtml = computed(() => {
           </div>
         </div>
 
-        <div class="flex justify-end pt-3">
+        <div class="pt-2 flex justify-end">
           <AppButton
             type="submit"
             variant="primary"
@@ -810,73 +653,40 @@ const formattedPreviewHtml = computed(() => {
       </form>
     </AppCard>
 
-    <!-- Onglet 2 : Modèles de lettre & Passage d'un modèle à l'autre -->
+    <!-- Onglet 2 : Modèle de Lettre & Historique des Versions -->
     <div v-if="activeTab === 'template'" class="space-y-6">
-      <!-- Bannière d'état du modèle actif -->
-      <div class="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
-            v{{ templateData?.version || 1 }}
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wider">
-                Modèle Actif dans l'application
-              </span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-600 text-white uppercase tracking-wider">
-                En service
-              </span>
-            </div>
-            <p class="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-              Utilisé par défaut pour la rédaction et l'impression de toutes les nouvelles lettres d'engagement.
-            </p>
-          </div>
-        </div>
-
-        <div class="text-xs text-slate-500 whitespace-nowrap self-end sm:self-auto">
-          {{ templateData?.templates?.length || 1 }} version(s) enregistrée(s)
-        </div>
-      </div>
-
-      <!-- Section 2A : Passage d'un modèle à l'autre (Liste des versions) -->
+      <!-- Section 2A : Historique des versions avec modes de lecture pour le patron -->
       <AppCard
-        title="Historique des Modèles & Sélection de la Version Active"
-        description="Basculez d'un modèle à l'autre en un clic pour définir la lettre appliquée aux nouveaux engagements"
+        title="Versions Enregistrées du Modèle de Lettre"
         icon="i-lucide-history"
-        body-class="space-y-4"
+        description="Consultez l'historique juridique de vos modèles de lettre et activez la version de votre choix en un clic"
       >
-        <!-- Barre de filtre/vue pour le patron dans l'historique -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs">
+        <!-- Sélecteur de mode de lecture pour le confort du patron -->
+        <div class="p-3 mb-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
           <div class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium">
             <UIcon name="i-lucide-eye" class="w-4 h-4 text-emerald-600" />
             <span>Mode de lecture des modèles enregistrés :</span>
           </div>
 
           <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-              :class="historyViewMode === 'patron' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-slate-200 dark:border-slate-700'"
+            <AppButton
+              size="xs"
+              :variant="historyViewMode === 'patron' ? 'primary' : 'outline'"
+              label="👤 Vue Patron (Termes clairs)"
               @click="historyViewMode = 'patron'"
-            >
-              👤 Vue Patron (Termes clairs)
-            </button>
-            <button
-              type="button"
-              class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-              :class="historyViewMode === 'simulation' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-slate-200 dark:border-slate-700'"
+            />
+            <AppButton
+              size="xs"
+              :variant="historyViewMode === 'simulation' ? 'primary' : 'outline'"
+              label="📄 Exemple Réel (Simulé)"
               @click="historyViewMode = 'simulation'"
-            >
-              📄 Exemple Réel (Simulé)
-            </button>
-            <button
-              type="button"
-              class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-              :class="historyViewMode === 'raw' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-slate-200 dark:border-slate-700'"
+            />
+            <AppButton
+              size="xs"
+              :variant="historyViewMode === 'raw' ? 'primary' : 'outline'"
+              label="⚙️ Code Brut {balises}"
               @click="historyViewMode = 'raw'"
-            >
-              ⚙️ Code Brut {balises}
-            </button>
+            />
           </div>
         </div>
 
@@ -925,13 +735,12 @@ const formattedPreviewHtml = computed(() => {
 
               <!-- Actions pour passer d'un modèle à l'autre -->
               <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                <button
-                  type="button"
-                  class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer font-medium mr-1"
+                <AppButton
+                  variant="link"
+                  size="xs"
+                  :label="expandedHistoryId === tpl.id ? 'Masquer le texte' : '👁 Lire en entier'"
                   @click="expandedHistoryId = expandedHistoryId === tpl.id ? null : tpl.id"
-                >
-                  {{ expandedHistoryId === tpl.id ? 'Masquer le texte' : '👁 Lire en entier' }}
-                </button>
+                />
 
                 <AppButton
                   variant="outline"
@@ -1006,14 +815,13 @@ const formattedPreviewHtml = computed(() => {
               </div>
 
               <!-- Bouton dépliant le guide patron -->
-              <button
-                type="button"
-                class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 inline-flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+              <AppButton
+                variant="ghost"
+                size="xs"
+                :icon="isGuideOpen ? 'i-lucide-chevron-up' : 'i-lucide-help-circle'"
+                :label="isGuideOpen ? 'Fermer le guide' : '📖 Guide & Explication des termes'"
                 @click="isGuideOpen = !isGuideOpen"
-              >
-                <UIcon :name="isGuideOpen ? 'i-lucide-chevron-up' : 'i-lucide-help-circle'" class="w-4 h-4" />
-                <span>{{ isGuideOpen ? 'Fermer le guide' : '📖 Guide & Explication des termes' }}</span>
-              </button>
+              />
             </div>
 
             <!-- Guide détaillé dépliable pour patron non-technicien -->
@@ -1072,60 +880,44 @@ const formattedPreviewHtml = computed(() => {
 
             <!-- Filtres de catégories pour navigation aisée -->
             <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              <button
-                type="button"
-                class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
-                :class="selectedCategory === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-slate-200 dark:border-slate-700'"
+              <AppButton
+                size="xs"
+                :variant="selectedCategory === 'all' ? 'primary' : 'outline'"
+                label="Tous les termes (12)"
                 @click="selectedCategory = 'all'"
-              >
-                Tous les termes (12)
-              </button>
-              <button
-                type="button"
-                class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
-                :class="selectedCategory === 'employe' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 border border-blue-200 dark:border-blue-900'"
+              />
+              <AppButton
+                size="xs"
+                :variant="selectedCategory === 'employe' ? 'primary' : 'outline'"
+                label="👤 Employé (4)"
                 @click="selectedCategory = 'employe'"
-              >
-                👤 Employé (4)
-              </button>
-              <button
-                type="button"
-                class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
-                :class="selectedCategory === 'finance' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 border border-emerald-200 dark:border-emerald-900'"
+              />
+              <AppButton
+                size="xs"
+                :variant="selectedCategory === 'finance' ? 'primary' : 'outline'"
+                label="💰 Finances & Délais (4)"
                 @click="selectedCategory = 'finance'"
-              >
-                💰 Finances & Délais (4)
-              </button>
-              <button
-                type="button"
-                class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
-                :class="selectedCategory === 'direction' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 border border-purple-200 dark:border-purple-900'"
+              />
+              <AppButton
+                size="xs"
+                :variant="selectedCategory === 'direction' ? 'primary' : 'outline'"
+                label="🏢 Direction & Date (4)"
                 @click="selectedCategory = 'direction'"
-              >
-                🏢 Direction & Date (4)
-              </button>
+              />
             </div>
 
             <!-- Liste des boutons de termes avec libellé en français et icône -->
             <div class="flex flex-wrap gap-1.5 pt-1">
-              <button
+              <AppButton
                 v-for="v in filteredVariables"
                 :key="v.key"
-                type="button"
+                size="xs"
+                variant="outline"
+                :icon="v.icon"
+                :label="`+ ${v.shortLabel}`"
                 :title="`${v.label} — ${v.description} (Exemple : ${v.example})`"
-                class="h-7.5 px-2.5 rounded-lg border text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
-                :class="[
-                  v.category === 'employe'
-                    ? 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
-                    : v.category === 'finance'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                    : 'bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100 hover:border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
-                ]"
                 @click="insertVariable(v.key)"
-              >
-                <UIcon :name="v.icon" class="w-3.5 h-3.5 shrink-0" />
-                <span>+ {{ v.shortLabel }}</span>
-              </button>
+              />
             </div>
 
             <!-- Notification éphémère d'insertion au curseur -->
@@ -1144,30 +936,24 @@ const formattedPreviewHtml = computed(() => {
 
               <!-- Onglets de prévisualisation : Rédaction, Vue Direction formatée, Vue simulation -->
               <div class="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <button
-                  type="button"
-                  class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-                  :class="editorViewMode === 'edit' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'"
+                <AppButton
+                  size="xs"
+                  :variant="editorViewMode === 'edit' ? 'primary' : 'ghost'"
+                  label="✏️ Rédaction"
                   @click="editorViewMode = 'edit'"
-                >
-                  ✏️ Rédaction
-                </button>
-                <button
-                  type="button"
-                  class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-                  :class="editorViewMode === 'formatted' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'"
+                />
+                <AppButton
+                  size="xs"
+                  :variant="editorViewMode === 'formatted' ? 'primary' : 'ghost'"
+                  label="🏷️ Termes Formatés (Patron)"
                   @click="editorViewMode = 'formatted'"
-                >
-                  🏷️ Termes Formatés (Patron)
-                </button>
-                <button
-                  type="button"
-                  class="h-6.5 px-2.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
-                  :class="editorViewMode === 'simulation' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'"
+                />
+                <AppButton
+                  size="xs"
+                  :variant="editorViewMode === 'simulation' ? 'primary' : 'ghost'"
+                  label="📄 Simulation Réelle"
                   @click="editorViewMode = 'simulation'"
-                >
-                  📄 Simulation Réelle
-                </button>
+                />
               </div>
             </div>
 
@@ -1229,41 +1015,6 @@ const formattedPreviewHtml = computed(() => {
         </div>
       </AppCard>
     </div>
-
-    <!-- Modale de Confirmation avec Mot de Passe Patron -->
-    <AppModal
-      v-model="isPasswordConfirmModalOpen"
-      title="Confirmation patron requise"
-      description="La création d’une nouvelle version de modèle de lettre est une action sensible qui s’appliquera aux engagements futurs."
-      icon="i-lucide-lock"
-      confirm-label="Valider & Créer la Version"
-      :confirm-loading="createVersionLoading"
-      @confirm="submitCreateVersion"
-      @cancel="isPasswordConfirmModalOpen = false"
-    >
-      <div class="space-y-4 py-2">
-        <p class="text-xs text-slate-600 dark:text-slate-300">
-          Pour certifier cette nouvelle version juridique, veuillez confirmer votre identité en saisissant le <strong>mot de passe du patron</strong> :
-        </p>
-
-        <div>
-          <AppInput
-            v-model="patronPasswordConfirm"
-            type="password"
-            label="Mot de passe du patron"
-            placeholder="Entrez votre mot de passe..."
-            :error="passwordConfirmError"
-            required
-            @keyup.enter="submitCreateVersion"
-          />
-        </div>
-
-        <div class="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2">
-          <UIcon name="i-lucide-info" class="w-4 h-4 shrink-0 text-amber-600" />
-          <span>La nouvelle version créée sera immédiatement activée comme modèle par défaut.</span>
-        </div>
-      </div>
-    </AppModal>
 
     <!-- Onglet 3 : Mot de passe -->
     <AppCard
@@ -1393,7 +1144,7 @@ const formattedPreviewHtml = computed(() => {
             size="xs"
             icon="i-lucide-user-plus"
             label="Ajouter un compte"
-            @click="openCreateUserModal"
+            @click="isCreateUserModalOpen = true"
           />
         </template>
 
@@ -1502,150 +1253,32 @@ const formattedPreviewHtml = computed(() => {
       </AppCard>
     </div>
 
-    <!-- Modale 1 : Créer un Utilisateur -->
-    <AppModal
+    <!-- Modale Confirmation Mot de Passe Patron pour Nouvelle Version Modèle -->
+    <BossPasswordModal
+      v-model="isPasswordConfirmModalOpen"
+      :content="templateContent"
+      @confirmed="(msg) => { successMsg = msg; refreshTemplate() }"
+    />
+
+    <!-- Modale Créer Utilisateur -->
+    <UserCreateModal
       v-model="isCreateUserModalOpen"
-      title="Ajouter un compte collaborateur"
-      description="Créez un compte d'accès et attribuez-lui son rôle dans l'entreprise."
-      icon="i-lucide-user-plus"
-      confirm-label="Créer le Compte"
-      :confirm-loading="createUserLoading"
-      @confirm="submitCreateUser"
-      @cancel="isCreateUserModalOpen = false"
-    >
-      <form class="space-y-4 py-2" @submit.prevent="submitCreateUser">
-        <AppInput
-          v-model="createUserForm.name"
-          label="Nom complet du collaborateur"
-          placeholder="ex: Mme Ngo Biboum, M. Kamga..."
-          :error="createUserErrors.name"
-          required
-        />
+      @created="(msg) => { successMsg = msg; refreshUsers() }"
+    />
 
-        <AppInput
-          v-model="createUserForm.username"
-          label="Identifiant de connexion (unique)"
-          placeholder="ex: secretaire, technicien2..."
-          :error="createUserErrors.username"
-          required
-        />
-
-        <!-- Sélection du Rôle -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-            Rôle et Responsabilités <span class="text-red-500">*</span>
-          </label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <button
-              v-for="r in USER_ROLES"
-              :key="r.value"
-              type="button"
-              class="p-2.5 rounded-lg border text-left transition-colors cursor-pointer flex flex-col justify-between"
-              :class="createUserForm.role === r.value ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'"
-              @click="createUserForm.role = r.value"
-            >
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-bold text-xs">{{ r.label }}</span>
-                <UIcon
-                  :name="r.value === 'PATRON' ? 'i-lucide-crown' : r.value === 'SECRETAIRE' ? 'i-lucide-clipboard-pen' : 'i-lucide-wrench'"
-                  class="w-4 h-4"
-                />
-              </div>
-              <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                {{ r.description.split(':')[0] }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <AppInput
-          v-model="createUserForm.password"
-          type="password"
-          label="Mot de passe temporaire (min 8 caractères)"
-          placeholder="••••••••••••"
-          :error="createUserErrors.password"
-          required
-        />
-      </form>
-    </AppModal>
-
-    <!-- Modale 2 : Modifier un Utilisateur -->
-    <AppModal
+    <!-- Modale Modifier Utilisateur -->
+    <UserEditModal
       v-model="isEditUserModalOpen"
-      title="Modifier le compte utilisateur"
-      description="Mettez à jour les informations, le rôle ou réinitialisez le mot de passe."
-      icon="i-lucide-pencil"
-      confirm-label="Enregistrer les Modifications"
-      :confirm-loading="editUserLoading"
-      @confirm="submitEditUser"
-      @cancel="isEditUserModalOpen = false"
-    >
-      <form class="space-y-4 py-2" @submit.prevent="submitEditUser">
-        <AppInput
-          v-model="editUserForm.name"
-          label="Nom complet du collaborateur"
-          :error="editUserErrors.name"
-          required
-        />
+      :user="selectedUserForEdit"
+      @updated="(msg) => { successMsg = msg; refreshUsers() }"
+    />
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Identifiant
-          </label>
-          <div class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-600 dark:text-slate-400">
-            @{{ editUserForm.username }} (non modifiable)
-          </div>
-        </div>
-
-        <!-- Sélection du Rôle -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-            Rôle et Responsabilités <span class="text-red-500">*</span>
-          </label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <button
-              v-for="r in USER_ROLES"
-              :key="r.value"
-              type="button"
-              class="p-2.5 rounded-lg border text-left transition-colors cursor-pointer flex flex-col justify-between"
-              :class="editUserForm.role === r.value ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'"
-              @click="editUserForm.role = r.value"
-            >
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-bold text-xs">{{ r.label }}</span>
-                <UIcon
-                  :name="r.value === 'PATRON' ? 'i-lucide-crown' : r.value === 'SECRETAIRE' ? 'i-lucide-clipboard-pen' : 'i-lucide-wrench'"
-                  class="w-4 h-4"
-                />
-              </div>
-              <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                {{ r.description.split(':')[0] }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <AppInput
-          v-model="editUserForm.password"
-          type="password"
-          label="Nouveau mot de passe (laisser vide pour ne pas changer)"
-          placeholder="Entrez pour changer le mot de passe..."
-          :error="editUserErrors.password"
-        />
-      </form>
-    </AppModal>
-
-    <!-- Modale 3 : Confirmation de Suppression d'Utilisateur -->
-    <AppModal
+    <!-- Modale Supprimer Utilisateur -->
+    <UserDeleteModal
       v-model="isDeleteUserModalOpen"
-      title="Confirmer la suppression du compte"
-      :description="`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${userToDelete?.name} (@${userToDelete?.username}) ? Ses sessions actives seront également révoquées.`"
-      icon="i-lucide-alert-triangle"
-      confirm-label="Supprimer Définitivement"
-      color="error"
-      :confirm-loading="deleteUserLoading"
-      @confirm="submitDeleteUser"
-      @cancel="isDeleteUserModalOpen = false"
+      :user="selectedUserForDelete"
+      @deleted="(msg) => { successMsg = msg; refreshUsers() }"
+      @error="(msg) => { errorMsg = msg }"
     />
 
     <!-- Onglet 4 : Sessions Actives -->

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataTableColumn } from '../components/AppDataTable.vue'
-import { PersonSchema, validateForm } from '~~/shared/schemas'
+import WorkerFormModal from '~/components/modals/workers/WorkerFormModal.vue'
+import WorkerArchiveModal from '~/components/modals/workers/WorkerArchiveModal.vue'
 
 useHead({
   title: 'Gestion des Employés'
@@ -21,119 +22,26 @@ const columns: DataTableColumn[] = [
 ]
 
 // Modale Ajout / Modification
-const isModalOpen = ref(false)
-const isEditing = ref(false)
-const currentWorkerId = ref<string | null>(null)
-
-const form = reactive({
-  civility: 'M.' as 'M.' | 'Mme' | 'Mlle',
-  fullName: '',
-  cni: '',
-  phone: ''
-})
-
-const formErrors = ref<Record<string, string>>({})
-const modalLoading = ref(false)
-const modalError = ref('')
+const isFormModalOpen = ref(false)
+const selectedWorkerId = ref<string | null>(null)
 
 const openAddModal = () => {
-  isEditing.value = false
-  currentWorkerId.value = null
-  form.civility = 'M.'
-  form.fullName = ''
-  form.cni = ''
-  form.phone = ''
-  formErrors.value = {}
-  modalError.value = ''
-  isModalOpen.value = true
+  selectedWorkerId.value = null
+  isFormModalOpen.value = true
 }
 
-const openEditModal = async (worker: any) => {
-  isEditing.value = true
-  currentWorkerId.value = worker.id
-  formErrors.value = {}
-  modalLoading.value = true
-  modalError.value = ''
-  isModalOpen.value = true
-
-  try {
-    const details = await $fetch<any>(`/api/workers/${worker.id}`)
-    form.civility = details.civility
-    form.fullName = details.fullName
-    form.cni = details.cni
-    form.phone = details.phone
-  } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors du chargement'
-  } finally {
-    modalLoading.value = false
-  }
-}
-
-const submitForm = async () => {
-  formErrors.value = {}
-  modalError.value = ''
-
-  const validation = validateForm(PersonSchema, {
-    civility: form.civility,
-    fullName: form.fullName,
-    cni: form.cni,
-    phone: form.phone
-  })
-
-  if (!validation.success) {
-    formErrors.value = validation.errors
-    modalError.value = validation.firstError
-    return
-  }
-
-  modalLoading.value = true
-  try {
-    if (isEditing.value && currentWorkerId.value) {
-      await $fetch(`/api/workers/${currentWorkerId.value}`, {
-        method: 'PUT',
-        body: validation.data
-      })
-    } else {
-      await $fetch('/api/workers', {
-        method: 'POST',
-        body: validation.data
-      })
-    }
-    isModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement'
-  } finally {
-    modalLoading.value = false
-  }
+const openEditModal = (worker: any) => {
+  selectedWorkerId.value = worker.id
+  isFormModalOpen.value = true
 }
 
 // Modale de confirmation d'archivage / restauration
 const isArchiveModalOpen = ref(false)
 const selectedWorkerForArchive = ref<any>(null)
-const archiveLoading = ref(false)
-const archiveError = ref('')
 
 const openArchiveModal = (worker: any) => {
   selectedWorkerForArchive.value = worker
-  archiveError.value = ''
   isArchiveModalOpen.value = true
-}
-
-const confirmArchive = async () => {
-  if (!selectedWorkerForArchive.value) return
-  archiveLoading.value = true
-  archiveError.value = ''
-  try {
-    await $fetch(`/api/workers/${selectedWorkerForArchive.value.id}/archive`, { method: 'PATCH' })
-    isArchiveModalOpen.value = false
-    selectedWorkerForArchive.value = null
-    await refresh()
-  } catch (err: any) {
-    archiveError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’opération'
-  } finally {
-    archiveLoading.value = false
-  }
 }
 </script>
 
@@ -232,114 +140,18 @@ const confirmArchive = async () => {
       </template>
     </AppDataTable>
 
-    <!-- Modale Ajout / Modification Employé (AppModal) -->
-    <AppModal
-      v-model="isModalOpen"
-      :title="isEditing ? 'Modifier l’employé' : 'Enregistrer un nouvel employé'"
-      description="Les informations sensibles (CNI, téléphone) sont chiffrées en base avec AES-256-GCM"
-      :icon="isEditing ? 'i-lucide-user-pen' : 'i-lucide-user-plus'"
-      :confirm-label="isEditing ? 'Mettre à jour' : 'Enregistrer'"
-      :confirm-loading="modalLoading"
-      @confirm="submitForm"
-    >
-      <div v-if="modalError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ modalError }}
-      </div>
+    <!-- Modale Ajout / Modification Employé -->
+    <WorkerFormModal
+      v-model="isFormModalOpen"
+      :worker-id="selectedWorkerId"
+      @saved="refresh"
+    />
 
-      <div class="space-y-3">
-        <!-- Civilité -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Civilité <span class="text-red-500">*</span>
-          </label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input v-model="form.civility" type="radio" value="M." class="text-emerald-600 focus:ring-emerald-500" />
-              <span>Monsieur (M.)</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input v-model="form.civility" type="radio" value="Mme" class="text-emerald-600 focus:ring-emerald-500" />
-              <span>Madame (Mme)</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input v-model="form.civility" type="radio" value="Mlle" class="text-emerald-600 focus:ring-emerald-500" />
-              <span>Mademoiselle (Mlle)</span>
-            </label>
-          </div>
-        </div>
-
-        <AppInput
-          v-model="form.fullName"
-          label="Nom complet et prénom"
-          placeholder="Ex: Kamga Jean-Paul"
-          :error="formErrors.fullName"
-          required
-        />
-
-        <AppInput
-          v-model="form.cni"
-          label="Numéro de CNI"
-          placeholder="Ex: 1029384756"
-          :error="formErrors.cni"
-          required
-          help="Numéro chiffré avant enregistrement, seuls les 4 derniers chiffres restent visibles"
-        />
-
-        <AppInput
-          v-model="form.phone"
-          type="tel"
-          label="Numéro de téléphone"
-          placeholder="Ex: +237 699 00 11 22"
-          :error="formErrors.phone"
-          required
-        />
-      </div>
-    </AppModal>
-
-    <!-- Modale de Confirmation d'Archivage / Restauration Employé (AppModal) -->
-    <AppModal
+    <!-- Modale Confirmation Archivage / Restauration Employé -->
+    <WorkerArchiveModal
       v-model="isArchiveModalOpen"
-      :title="selectedWorkerForArchive?.isArchived ? 'Restaurer l\'employé' : 'Archiver l\'employé'"
-      :description="selectedWorkerForArchive?.isArchived
-        ? 'L\'employé redeviendra actif et pourra à nouveau être sélectionné sur les engagements.'
-        : 'L\'employé sera archivé et ne figurera plus dans la liste des employés actifs.'"
-      :icon="selectedWorkerForArchive?.isArchived ? 'i-lucide-rotate-ccw' : 'i-lucide-archive'"
-      :confirm-label="selectedWorkerForArchive?.isArchived ? 'Restaurer l\'employé' : 'Archiver l\'employé'"
-      :confirm-color="selectedWorkerForArchive?.isArchived ? 'primary' : 'error'"
-      :confirm-loading="archiveLoading"
-      cancel-label="Annuler"
-      @confirm="confirmArchive"
-    >
-      <div v-if="archiveError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ archiveError }}
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Employé :</span>
-            <span class="font-bold text-slate-900 dark:text-white whitespace-nowrap">
-              {{ selectedWorkerForArchive?.civility }} {{ selectedWorkerForArchive?.fullName }}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">CNI :</span>
-            <span class="font-mono text-slate-700 dark:text-slate-300">
-              {{ selectedWorkerForArchive?.cniMasked }}
-            </span>
-          </div>
-        </div>
-
-        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-          <template v-if="selectedWorkerForArchive?.isArchived">
-            Êtes-vous sûr de vouloir réactiver l'employé <strong class="text-slate-900 dark:text-white whitespace-nowrap">« {{ selectedWorkerForArchive?.civility }} {{ selectedWorkerForArchive?.fullName }} »</strong> ?
-          </template>
-          <template v-else>
-            Êtes-vous sûr de vouloir archiver l'employé <strong class="text-slate-900 dark:text-white whitespace-nowrap">« {{ selectedWorkerForArchive?.civility }} {{ selectedWorkerForArchive?.fullName }} »</strong> ?
-            Ses engagements passés seront rigoureusement conservés.
-          </template>
-        </p>
-      </div>
-    </AppModal>
+      :worker="selectedWorkerForArchive"
+      @archived="refresh"
+    />
   </div>
 </template>

@@ -33,6 +33,7 @@
     "@nuxt/eslint": "^1.17.0",
     "@types/node": "^22.13.9",
     "eslint": "^10.13.0",
+    "eslint-plugin-better-tailwindcss": "^4.10.0",
     "mongodb-memory-server": "^10.1.4",
     "tsx": "^4.19.3",
     "typescript": "^6.0.3",

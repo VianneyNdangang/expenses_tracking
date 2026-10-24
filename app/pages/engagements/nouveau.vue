@@ -299,17 +299,8 @@ const handleSubmit = async () => {
         body-class="space-y-3"
       >
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <AppButton
-            v-for="ct in commitmentTypes"
-            variant="primary"
-            size="xs"
-            :icon="ct.label"
-            :label="ct.label"
-            class="shadow-xs font-semibold"
-            @click="selectType(ct.type)"
-          />
           <button
-            
+            v-for="ct in commitmentTypes"
             :key="ct.type"
             type="button"
             class=" flex p-3.5 rounded-lg border text-left transition-all relative flex flex-col justify-between cursor-pointer"
@@ -318,27 +309,27 @@ const handleSubmit = async () => {
                 ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-500'
                 : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
             ]"
-            
+            @click="selectType(ct.type)"
           >
-            <!-- <div> -->
-              <!-- <div class="flex items-center justify-between mb-2"> -->
-                <!-- <UIcon
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <UIcon
                   :name="ct.icon"
                   class="w-5 h-5"
                   :class="form.type === ct.type ? 'text-emerald-600' : 'text-slate-500'"
-                /> -->
-                <!-- <span
+                />
+                <span
                   v-if="form.type === ct.type"
                   class="w-2 h-2 rounded-full bg-emerald-500"
-                /> -->
-              <!-- </div> -->
-              <!-- <div class="font-bold text-xs text-slate-900 dark:text-white mb-0.5"> -->
+                />
+              </div>
+              <div class="font-bold text-xs text-slate-900 dark:text-white mb-0.5">
                 {{ ct.label }}
-              <!-- </div> -->
-              <!-- <p class="text-[11px] text-slate-500 leading-tight">
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">
                 {{ ct.description }}
-              </p> -->
-            <!-- </div> -->
+              </p>
+            </div>
           </button>
         </div>
       </AppCard>
@@ -418,15 +409,15 @@ const handleSubmit = async () => {
           <!-- Suggestions dynamiques de motifs selon le type -->
           <div class="flex flex-wrap gap-1.5 mt-2">
             <span class="text-[11px] text-slate-500 self-center">Suggestions :</span>
-            <button
+            <AppButton
               v-for="sug in frequentPurposesByType"
               :key="sug"
-              type="button"
-              class="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+              variant="outline"
+              size="xs"
+              :label="sug"
+              class="text-[11px]"
               @click="form.purpose = sug"
-            >
-              {{ sug }}
-            </button>
+            />
           </div>
         </div>
 

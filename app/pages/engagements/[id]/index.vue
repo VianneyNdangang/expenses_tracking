@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { formatFCFA } from '~~/shared/currency'
-import {
-  ApproveCommitmentSchema,
-  CreatePaymentSchema,
-  CreateJustificationSchema,
-  CancelCommitmentSchema,
-  validateForm
-} from '~~/shared/schemas'
+import EngagementDecisionModal from '~/components/modals/engagements/EngagementDecisionModal.vue'
+import EngagementPaymentModal from '~/components/modals/engagements/EngagementPaymentModal.vue'
+import EngagementJustificationModal from '~/components/modals/engagements/EngagementJustificationModal.vue'
+import EngagementScanModal from '~/components/modals/engagements/EngagementScanModal.vue'
+import EngagementCancelModal from '~/components/modals/engagements/EngagementCancelModal.vue'
 
 const route = useRoute()
-const router = useRouter()
 const commitmentId = route.params.id as string
 
-const { data: commitment, pending, refresh } = await useFetch(`/api/commitments/${commitmentId}`)
+const { data: commitment, refresh } = await useFetch(`/api/commitments/${commitmentId}`)
 
 const { downloadingId, downloadCommitmentPdf } = usePdfDownload()
 const { isPatron } = useAuth()
@@ -24,248 +21,23 @@ useHead({
 // Modales d'action
 const isDecisionModalOpen = ref(false)
 const decisionType = ref<'approve' | 'refuse'>('approve')
-const decisionForm = reactive({
-  amountApproved: 0,
-  refusalReason: ''
-})
-const decisionErrors = ref<Record<string, string>>({})
-
-const isPaymentModalOpen = ref(false)
-const paymentForm = reactive({
-  amount: 0,
-  date: new Date().toISOString().split('T')[0],
-  method: 'Espèces' as 'Espèces' | 'Virement' | 'Chèque' | 'Mobile Money' | 'Autre',
-  reference: '',
-  notes: ''
-})
-const paymentErrors = ref<Record<string, string>>({})
-
-const isJustificationModalOpen = ref(false)
-const justificationForm = reactive({
-  amountSpent: 0,
-  date: new Date().toISOString().split('T')[0],
-  notes: ''
-})
-const justificationErrors = ref<Record<string, string>>({})
-
-const isCancelModalOpen = ref(false)
-const cancelForm = reactive({
-  reason: ''
-})
-const cancelErrors = ref<Record<string, string>>({})
-
-const isScanModalOpen = ref(false)
-const scanFile = ref<File | null>(null)
-
-const actionLoading = ref(false)
-const actionError = ref('')
-
-// Ouvre la modale d'acceptation ou refus
 const openDecisionModal = (type: 'approve' | 'refuse') => {
   decisionType.value = type
-  decisionErrors.value = {}
-  actionError.value = ''
-  if (type === 'approve') {
-    decisionForm.amountApproved = commitment.value?.amountRequested || 0
-  } else {
-    decisionForm.refusalReason = ''
-  }
   isDecisionModalOpen.value = true
 }
 
-const submitDecision = async () => {
-  decisionErrors.value = {}
-  actionError.value = ''
-
-  const payload = {
-    approved: decisionType.value === 'approve',
-    amountApproved: Math.round(Number(decisionForm.amountApproved)),
-    refusalReason: decisionForm.refusalReason
-  }
-
-  const validation = validateForm(ApproveCommitmentSchema, payload)
-  if (!validation.success) {
-    decisionErrors.value = validation.errors
-    actionError.value = validation.firstError
-    return
-  }
-
-  actionLoading.value = true
-  try {
-    await $fetch(`/api/commitments/${commitmentId}/decision`, {
-      method: 'POST',
-      body: validation.data
-    })
-    isDecisionModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de la prise de décision'
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-// Ouvre la modale de paiement
+const isPaymentModalOpen = ref(false)
 const openPaymentModal = () => {
-  paymentForm.amount = commitment.value?.amountApproved || commitment.value?.amountRequested || 0
-  paymentForm.date = new Date().toISOString().split('T')[0]
-  paymentForm.method = 'Espèces'
-  paymentForm.reference = ''
-  paymentForm.notes = ''
-  paymentErrors.value = {}
-  actionError.value = ''
   isPaymentModalOpen.value = true
 }
 
-const submitPayment = async () => {
-  paymentErrors.value = {}
-  actionError.value = ''
-
-  const payload = {
-    commitmentId,
-    amount: Math.round(Number(paymentForm.amount)),
-    date: paymentForm.date,
-    method: paymentForm.method,
-    reference: paymentForm.reference,
-    notes: paymentForm.notes
-  }
-
-  const validation = validateForm(CreatePaymentSchema, payload)
-  if (!validation.success) {
-    paymentErrors.value = validation.errors
-    actionError.value = validation.firstError
-    return
-  }
-
-  actionLoading.value = true
-  try {
-    await $fetch('/api/payments', {
-      method: 'POST',
-      body: validation.data
-    })
-    isPaymentModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement du paiement'
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-// Ouvre la modale de justification
+const isJustificationModalOpen = ref(false)
 const openJustificationModal = () => {
-  const paid = commitment.value?.payment?.amount || commitment.value?.amountApproved || 0
-  justificationForm.amountSpent = paid
-  justificationForm.date = new Date().toISOString().split('T')[0]
-  justificationForm.notes = ''
-  justificationErrors.value = {}
-  actionError.value = ''
   isJustificationModalOpen.value = true
 }
 
-const liveBalance = computed(() => {
-  const paid = commitment.value?.payment?.amount || commitment.value?.amountApproved || 0
-  return paid - (justificationForm.amountSpent || 0)
-})
-
-const submitJustification = async () => {
-  justificationErrors.value = {}
-  actionError.value = ''
-
-  const payload = {
-    commitmentId,
-    amountSpent: Math.round(Number(justificationForm.amountSpent)),
-    date: justificationForm.date,
-    notes: justificationForm.notes
-  }
-
-  const validation = validateForm(CreateJustificationSchema, payload)
-  if (!validation.success) {
-    justificationErrors.value = validation.errors
-    actionError.value = validation.firstError
-    return
-  }
-
-  actionLoading.value = true
-  try {
-    await $fetch('/api/justifications', {
-      method: 'POST',
-      body: validation.data
-    })
-    isJustificationModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement de la justification'
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-// Annulation
-const submitCancel = async () => {
-  cancelErrors.value = {}
-  actionError.value = ''
-
-  const validation = validateForm(CancelCommitmentSchema, {
-    reason: cancelForm.reason
-  })
-
-  if (!validation.success) {
-    cancelErrors.value = validation.errors
-    actionError.value = validation.firstError
-    return
-  }
-
-  actionLoading.value = true
-  try {
-    await $fetch(`/api/commitments/${commitmentId}/cancel`, {
-      method: 'POST',
-      body: validation.data
-    })
-    isCancelModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’annulation'
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-// Upload Scan signé
-const onFileSelected = (e: any) => {
-  const file = e.target.files?.[0]
-  if (file) {
-    scanFile.value = file
-  }
-}
-
-const submitScan = async () => {
-  if (!scanFile.value) return
-  actionLoading.value = true
-  actionError.value = ''
-
-  try {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string
-      await $fetch(`/api/commitments/${commitmentId}/upload-scan`, {
-        method: 'POST',
-        body: {
-          filename: scanFile.value!.name,
-          base64
-        }
-      })
-      isScanModalOpen.value = false
-      scanFile.value = null
-      await refresh()
-    }
-    reader.readAsDataURL(scanFile.value)
-  } catch (err: any) {
-    actionError.value = err.data?.statusMessage || err.message || 'Erreur lors du téléversement du scan'
-  } finally {
-    actionLoading.value = false
-  }
-}
+const isCancelModalOpen = ref(false)
+const isScanModalOpen = ref(false)
 
 const getLineStatusBadge = (status: string) => {
   switch (status) {
@@ -444,7 +216,6 @@ const getLineStatusBadge = (status: string) => {
       icon="i-lucide-git-commit"
       body-class="space-y-2"
     >
-
       <div class="grid grid-cols-4 gap-2 text-center text-xs">
         <!-- 1. Demandé -->
         <div class="space-y-1.5">
@@ -588,7 +359,6 @@ const getLineStatusBadge = (status: string) => {
       icon="i-lucide-shopping-cart"
       no-padding
     >
-
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
           <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
@@ -839,215 +609,43 @@ const getLineStatusBadge = (status: string) => {
     </AppCard>
 
     <!-- Modale Décision (Accepter / Refuser) -->
-    <AppModal
+    <EngagementDecisionModal
       v-model="isDecisionModalOpen"
-      :title="decisionType === 'approve' ? 'Accepter l’engagement' : 'Refuser l’engagement'"
-      :description="decisionType === 'approve' ? 'Validez le montant demandé ou accordez un montant partiel.' : 'Précisez le motif du refus qui sera conservé au dossier.'"
-      :icon="decisionType === 'approve' ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
-      :confirm-label="decisionType === 'approve' ? 'Confirmer l’acceptation' : 'Confirmer le refus'"
-      :confirm-color="decisionType === 'approve' ? 'primary' : 'error'"
-      :confirm-loading="actionLoading"
-      @confirm="submitDecision"
-    >
-      <div v-if="actionError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ actionError }}
-      </div>
-
-      <div v-if="decisionType === 'approve'" class="space-y-3">
-        <p class="text-xs text-slate-600 dark:text-slate-400">
-          Le montant total demandé est de <strong>{{ commitment.formattedAmountRequested }}</strong>.
-        </p>
-
-        <AppInput
-          v-model.number="decisionForm.amountApproved"
-          type="number"
-          label="Montant accordé (FCFA)"
-          min="1"
-          :error="decisionErrors.amountApproved"
-          required
-        />
-      </div>
-
-      <div v-else class="space-y-3">
-        <AppInput
-          v-model="decisionForm.refusalReason"
-          type="textarea"
-          label="Motif du refus"
-          placeholder="Ex : Écart de prix suspect sur le ciment, devis non justifié..."
-          :error="decisionErrors.refusalReason"
-          required
-          :rows="3"
-        />
-      </div>
-    </AppModal>
+      :commitment-id="commitmentId"
+      :decision-type="decisionType"
+      :amount-requested="commitment.amountRequested"
+      :formatted-amount-requested="commitment.formattedAmountRequested"
+      @decided="refresh"
+    />
 
     <!-- Modale Enregistrement Paiement -->
-    <AppModal
+    <EngagementPaymentModal
       v-model="isPaymentModalOpen"
-      title="Enregistrer le paiement (Décaissement)"
-      description="Le statut passera à Payé et déclenchera le suivi du délai de justification."
-      icon="i-lucide-banknote"
-      confirm-label="Valider le Paiement"
-      :confirm-loading="actionLoading"
-      @confirm="submitPayment"
-    >
-      <div v-if="actionError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ actionError }}
-      </div>
-
-      <div class="space-y-3">
-        <AppInput
-          v-model.number="paymentForm.amount"
-          type="number"
-          label="Montant payé (FCFA)"
-          min="1"
-          :error="paymentErrors.amount"
-          required
-        />
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Mode de paiement
-            </label>
-            <select
-              v-model="paymentForm.method"
-              class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-            >
-              <option value="Espèces">Espèces</option>
-              <option value="Virement">Virement bancaire</option>
-              <option value="Chèque">Chèque</option>
-              <option value="Mobile Money">Mobile Money (Orange/MTN)</option>
-              <option value="Autre">Autre</option>
-            </select>
-          </div>
-
-          <AppDatePicker
-            v-model="paymentForm.date"
-            label="Date de paiement"
-            :error="paymentErrors.date"
-            required
-          />
-        </div>
-
-        <AppInput
-          v-model="paymentForm.reference"
-          label="Référence / N° de reçu (facultatif)"
-          placeholder="Ex: RECU-089 ou ID Transaction OM"
-          :error="paymentErrors.reference"
-        />
-      </div>
-    </AppModal>
+      :commitment-id="commitmentId"
+      :default-amount="commitment.amountApproved || commitment.amountRequested || 0"
+      @paid="refresh"
+    />
 
     <!-- Modale Enregistrement Justification -->
-    <AppModal
+    <EngagementJustificationModal
       v-model="isJustificationModalOpen"
-      title="Enregistrer la justification des dépenses"
-      description="Saisissez le montant effectivement dépensé sur factures pour calculer le reliquat."
-      icon="i-lucide-receipt"
-      confirm-label="Clôturer la Justification"
-      :confirm-loading="actionLoading"
-      @confirm="submitJustification"
-    >
-      <div v-if="actionError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ actionError }}
-      </div>
-
-      <div class="space-y-3">
-        <AppInput
-          v-model.number="justificationForm.amountSpent"
-          type="number"
-          label="Montant réellement dépensé (FCFA)"
-          min="0"
-          :error="justificationErrors.amountSpent"
-          required
-        />
-
-        <!-- Calcul en direct du reliquat -->
-        <div
-          class="p-3 rounded-lg border text-xs"
-          :class="[
-            liveBalance > 0
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : liveBalance === 0
-                ? 'bg-slate-50 text-slate-800 border-slate-200'
-                : 'bg-red-50 text-red-800 border-red-200'
-          ]"
-        >
-          <div class="font-medium">
-            {{ liveBalance > 0 ? 'Reliquat à restituer par l’employé :' : liveBalance === 0 ? 'Dépense exacte (aucun reliquat) :' : 'Dépassement de budget à la charge de l’employé :' }}
-          </div>
-          <div class="text-base font-bold mt-0.5">
-            {{ formatFCFA(liveBalance) }}
-          </div>
-        </div>
-
-        <AppDatePicker
-          v-model="justificationForm.date"
-          label="Date du bilan"
-          :error="justificationErrors.date"
-          required
-        />
-
-        <AppInput
-          v-model="justificationForm.notes"
-          type="textarea"
-          label="Notes & Références factures"
-          placeholder="Ex : Factures n°12 et 14 conformes, reliquat de 5 000 versé en caisse..."
-          :error="justificationErrors.notes"
-          :rows="2"
-        />
-      </div>
-    </AppModal>
+      :commitment-id="commitmentId"
+      :paid-amount="commitment.payment?.amount || commitment.amountApproved || 0"
+      @justified="refresh"
+    />
 
     <!-- Modale Scan Signé -->
-    <AppModal
+    <EngagementScanModal
       v-model="isScanModalOpen"
-      title="Joindre le scan de la lettre signée"
-      description="Sélectionnez le document PDF ou l'image contresignée par l'employé, le patron et les témoins."
-      icon="i-lucide-upload"
-      confirm-label="Enregistrer le scan"
-      :confirm-disabled="!scanFile"
-      :confirm-loading="actionLoading"
-      @confirm="submitScan"
-    >
-      <div v-if="actionError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ actionError }}
-      </div>
-
-      <div>
-        <input
-          type="file"
-          accept="application/pdf,image/*"
-          class="w-full text-xs"
-          @change="onFileSelected"
-        />
-      </div>
-    </AppModal>
+      :commitment-id="commitmentId"
+      @uploaded="refresh"
+    />
 
     <!-- Modale Annulation -->
-    <AppModal
+    <EngagementCancelModal
       v-model="isCancelModalOpen"
-      title="Annuler cet engagement"
-      description="Cette action est irréversible et sera intégralement tracée dans le journal d'audit."
-      icon="i-lucide-alert-octagon"
-      confirm-label="Confirmer l'annulation"
-      confirm-color="error"
-      :confirm-disabled="!cancelForm.reason"
-      :confirm-loading="actionLoading"
-      @confirm="submitCancel"
-    >
-      <div class="space-y-3">
-        <AppInput
-          v-model="cancelForm.reason"
-          type="textarea"
-          label="Motif obligatoire de l'annulation"
-          placeholder="Précisez la raison de l'annulation..."
-          :error="cancelErrors.reason"
-          required
-          :rows="3"
-        />
-      </div>
-    </AppModal>
+      :commitment-id="commitmentId"
+      @cancelled="refresh"
+    />
   </div>
 </template>

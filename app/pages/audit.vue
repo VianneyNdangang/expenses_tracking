@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DataTableColumn } from '../components/AppDataTable.vue'
+import AuditDetailModal from '~/components/modals/audit/AuditDetailModal.vue'
 
 useHead({
   title: 'Journal d’Audit'
@@ -146,44 +147,10 @@ const getActionColor = (action: string) => {
       </template>
     </AppDataTable>
 
-    <!-- Modale Détail Événement d'audit (AppModal) -->
-    <AppModal
+    <!-- Modale Détail Événement d'audit -->
+    <AuditDetailModal
       v-model="isDetailModalOpen"
-      :title="`Événement d'Audit — ${selectedLog?.action}`"
-      icon="i-lucide-shield-alert"
-      hide-confirm
-      cancel-label="Fermer"
-    >
-      <div v-if="selectedLog" class="space-y-4 text-xs font-mono">
-        <div class="grid grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 font-sans">
-          <div>
-            <span class="text-slate-500 block text-[11px]">Utilisateur :</span>
-            <span class="font-bold text-slate-900 dark:text-white">{{ selectedLog.username }}</span>
-          </div>
-          <div>
-            <span class="text-slate-500 block text-[11px]">Date & Heure :</span>
-            <span class="text-slate-800 dark:text-slate-200">{{ new Date(selectedLog.createdAt).toLocaleString('fr-FR') }}</span>
-          </div>
-          <div>
-            <span class="text-slate-500 block text-[11px]">Adresse IP :</span>
-            <span class="font-mono text-slate-800 dark:text-slate-200">{{ selectedLog.ip }}</span>
-          </div>
-          <div>
-            <span class="text-slate-500 block text-[11px]">Entité :</span>
-            <span class="font-semibold text-slate-800 dark:text-slate-200">{{ selectedLog.entity }} (ID: {{ selectedLog.entityId }})</span>
-          </div>
-        </div>
-
-        <div v-if="selectedLog.before" class="space-y-1">
-          <span class="font-sans font-semibold text-slate-700 dark:text-slate-300 block">Données Avant (Snapshot) :</span>
-          <pre class="p-3 bg-slate-100 dark:bg-slate-950 rounded-lg text-slate-800 dark:text-slate-300 overflow-x-auto text-[11px]">{{ JSON.stringify(selectedLog.before, null, 2) }}</pre>
-        </div>
-
-        <div v-if="selectedLog.after" class="space-y-1">
-          <span class="font-sans font-semibold text-slate-700 dark:text-slate-300 block">Données Après (Snapshot) :</span>
-          <pre class="p-3 bg-slate-100 dark:bg-slate-950 rounded-lg text-slate-800 dark:text-slate-300 overflow-x-auto text-[11px]">{{ JSON.stringify(selectedLog.after, null, 2) }}</pre>
-        </div>
-      </div>
-    </AppModal>
+      :log="selectedLog"
+    />
   </div>
 </template>

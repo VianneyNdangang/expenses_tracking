@@ -146,14 +146,13 @@ watch(() => route.fullPath, () => {
               <div class="text-xs text-slate-500 mt-1">Espace Direction</div>
             </div>
           </div>
-          <button
-            type="button"
-            class="h-7 w-7 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+          <AppButton
+            variant="ghost"
+            size="xs"
+            icon="i-lucide-x"
             aria-label="Fermer le menu"
             @click="handleClose"
-          >
-            <UIcon name="i-lucide-x" class="w-5 h-5" />
-          </button>
+          />
         </div>
 
         <!-- Liens -->

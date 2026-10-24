@@ -1,0 +1,168 @@
+<script setup lang="ts">
+import { PersonSchema, validateForm } from '~~/shared/schemas'
+
+interface Props {
+  modelValue: boolean
+  workerId?: string | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  workerId: null
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  saved: []
+}>()
+
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (val: boolean) => emit('update:modelValue', val)
+})
+
+const isEditing = computed(() => Boolean(props.workerId))
+
+const form = reactive({
+  civility: 'M.' as 'M.' | 'Mme' | 'Mlle',
+  fullName: '',
+  cni: '',
+  phone: ''
+})
+
+const formErrors = ref<Record<string, string>>({})
+const modalLoading = ref(false)
+const modalError = ref('')
+
+const resetForm = () => {
+  form.civility = 'M.'
+  form.fullName = ''
+  form.cni = ''
+  form.phone = ''
+  formErrors.value = {}
+  modalError.value = ''
+}
+
+watch(() => props.modelValue, async (val) => {
+  if (val) {
+    resetForm()
+    if (props.workerId) {
+      modalLoading.value = true
+      try {
+        const details = await $fetch<any>(`/api/workers/${props.workerId}`)
+        form.civility = details.civility || 'M.'
+        form.fullName = details.fullName || ''
+        form.cni = details.cni || ''
+        form.phone = details.phone || ''
+      } catch (err: any) {
+        modalError.value = err.data?.statusMessage || err.message || 'Erreur lors du chargement des détails'
+      } finally {
+        modalLoading.value = false
+      }
+    }
+  }
+})
+
+const submitForm = async () => {
+  formErrors.value = {}
+  modalError.value = ''
+
+  const validation = validateForm(PersonSchema, {
+    civility: form.civility,
+    fullName: form.fullName,
+    cni: form.cni,
+    phone: form.phone
+  })
+
+  if (!validation.success) {
+    formErrors.value = validation.errors
+    modalError.value = validation.firstError
+    return
+  }
+
+  modalLoading.value = true
+  try {
+    if (isEditing.value && props.workerId) {
+      await $fetch(`/api/workers/${props.workerId}`, {
+        method: 'PUT',
+        body: validation.data
+      })
+    } else {
+      await $fetch('/api/workers', {
+        method: 'POST',
+        body: validation.data
+      })
+    }
+    isOpen.value = false
+    emit('saved')
+  } catch (err: any) {
+    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’enregistrement'
+  } finally {
+    modalLoading.value = false
+  }
+}
+</script>
+
+<template>
+  <AppModal
+    v-model="isOpen"
+    :title="isEditing ? 'Modifier l’employé' : 'Enregistrer un nouvel employé'"
+    description="Les informations sensibles (CNI, téléphone) sont chiffrées en base avec AES-256-GCM"
+    :icon="isEditing ? 'i-lucide-user-pen' : 'i-lucide-user-plus'"
+    :confirm-label="isEditing ? 'Mettre à jour' : 'Enregistrer'"
+    :confirm-loading="modalLoading"
+    @confirm="submitForm"
+  >
+    <div v-if="modalError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
+      {{ modalError }}
+    </div>
+
+    <div class="space-y-3">
+      <!-- Civilité -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          Civilité <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+            <input v-model="form.civility" type="radio" value="M." class="text-emerald-600 focus:ring-emerald-500" />
+            <span>Monsieur (M.)</span>
+          </label>
+          <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+            <input v-model="form.civility" type="radio" value="Mme" class="text-emerald-600 focus:ring-emerald-500" />
+            <span>Madame (Mme)</span>
+          </label>
+          <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+            <input v-model="form.civility" type="radio" value="Mlle" class="text-emerald-600 focus:ring-emerald-500" />
+            <span>Mademoiselle (Mlle)</span>
+          </label>
+        </div>
+      </div>
+
+      <AppInput
+        v-model="form.fullName"
+        label="Nom complet et prénom"
+        placeholder="Ex: Kamga Jean-Paul"
+        :error="formErrors.fullName"
+        required
+      />
+
+      <AppInput
+        v-model="form.cni"
+        label="Numéro de CNI"
+        placeholder="Ex: 1029384756"
+        :error="formErrors.cni"
+        required
+        help="Numéro chiffré avant enregistrement, seuls les 4 derniers chiffres restent visibles"
+      />
+
+      <AppInput
+        v-model="form.phone"
+        type="tel"
+        label="Numéro de téléphone"
+        placeholder="Ex: +237 699 00 11 22"
+        :error="formErrors.phone"
+        required
+      />
+    </div>
+  </AppModal>
+</template>

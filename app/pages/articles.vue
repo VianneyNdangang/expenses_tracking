@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { formatFCFA } from '~~/shared/currency'
-import { CreateItemSchema, NewPriceSchema, validateForm } from '~~/shared/schemas'
 import type { DataTableColumn } from '../components/AppDataTable.vue'
+import ArticleFormModal from '~/components/modals/articles/ArticleFormModal.vue'
+import ArticlePriceModal from '~/components/modals/articles/ArticlePriceModal.vue'
+import ArticleHistoryModal from '~/components/modals/articles/ArticleHistoryModal.vue'
+import ArticleArchiveModal from '~/components/modals/articles/ArticleArchiveModal.vue'
 
 useHead({
   title: 'Articles & Prix de Référence'
@@ -24,162 +27,32 @@ const columns: DataTableColumn[] = [
 
 // Modale Nouvel Article
 const isNewItemModalOpen = ref(false)
-const newItemForm = reactive({
-  name: '',
-  unit: 'Unité',
-  referencePrice: 0,
-  tolerancePercent: 10,
-  notes: ''
-})
-const newItemErrors = ref<Record<string, string>>({})
+const openNewItemModal = () => {
+  isNewItemModalOpen.value = true
+}
 
 // Modale Nouveau Prix
 const isNewPriceModalOpen = ref(false)
 const selectedItemForPrice = ref<any>(null)
-const newPriceForm = reactive({
-  referencePrice: 0,
-  tolerancePercent: 10,
-  notes: ''
-})
-const newPriceErrors = ref<Record<string, string>>({})
-
-// Modale Historique Prix
-const isPriceHistoryModalOpen = ref(false)
-const priceHistory = ref<any[]>([])
-const selectedItemForHistory = ref<any>(null)
-
-const modalLoading = ref(false)
-const modalError = ref('')
-
-const openNewItemModal = () => {
-  newItemForm.name = ''
-  newItemForm.unit = 'Unité'
-  newItemForm.referencePrice = 0
-  newItemForm.tolerancePercent = 10
-  newItemForm.notes = ''
-  newItemErrors.value = {}
-  modalError.value = ''
-  isNewItemModalOpen.value = true
-}
-
-const submitNewItem = async () => {
-  newItemErrors.value = {}
-  modalError.value = ''
-
-  const validation = validateForm(CreateItemSchema, {
-    name: newItemForm.name,
-    unit: newItemForm.unit,
-    referencePrice: Number(newItemForm.referencePrice),
-    tolerancePercent: Number(newItemForm.tolerancePercent),
-    notes: newItemForm.notes
-  })
-
-  if (!validation.success) {
-    newItemErrors.value = validation.errors
-    modalError.value = validation.firstError
-    return
-  }
-
-  modalLoading.value = true
-  try {
-    await $fetch('/api/items', {
-      method: 'POST',
-      body: validation.data
-    })
-    isNewItemModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’ajout'
-  } finally {
-    modalLoading.value = false
-  }
-}
-
 const openNewPriceModal = (item: any) => {
   selectedItemForPrice.value = item
-  newPriceForm.referencePrice = item.referencePrice || 0
-  newPriceForm.tolerancePercent = item.tolerancePercent || 10
-  newPriceForm.notes = ''
-  newPriceErrors.value = {}
-  modalError.value = ''
   isNewPriceModalOpen.value = true
 }
 
-const submitNewPrice = async () => {
-  if (!selectedItemForPrice.value) return
-  newPriceErrors.value = {}
-  modalError.value = ''
-
-  const validation = validateForm(NewPriceSchema, {
-    referencePrice: Number(newPriceForm.referencePrice),
-    tolerancePercent: Number(newPriceForm.tolerancePercent),
-    notes: newPriceForm.notes
-  })
-
-  if (!validation.success) {
-    newPriceErrors.value = validation.errors
-    modalError.value = validation.firstError
-    return
-  }
-
-  modalLoading.value = true
-  try {
-    await $fetch(`/api/items/${selectedItemForPrice.value.id}/price`, {
-      method: 'POST',
-      body: validation.data
-    })
-    isNewPriceModalOpen.value = false
-    await refresh()
-  } catch (err: any) {
-    modalError.value = err.data?.statusMessage || err.message || 'Erreur lors de la mise à jour'
-  } finally {
-    modalLoading.value = false
-  }
-}
-
-const viewPriceHistory = async (item: any) => {
+// Modale Historique Prix
+const isPriceHistoryModalOpen = ref(false)
+const selectedItemForHistory = ref<any>(null)
+const viewPriceHistory = (item: any) => {
   selectedItemForHistory.value = item
   isPriceHistoryModalOpen.value = true
-  priceHistory.value = []
-  try {
-    const res = await $fetch<any[]>(`/api/items/${item.id}/prices`)
-    priceHistory.value = res || []
-  } catch (err: any) {
-    console.error('Erreur historique prix', err)
-  }
 }
 
-// Modale de confirmation d'archivage / restauration
+// Modale Confirmation Archivage / Restauration
 const isArchiveModalOpen = ref(false)
 const selectedItemForArchive = ref<any>(null)
-const archiveLoading = ref(false)
-const archiveError = ref('')
-
 const openArchiveModal = (item: any) => {
   selectedItemForArchive.value = item
-  archiveError.value = ''
   isArchiveModalOpen.value = true
-}
-
-const confirmArchive = async () => {
-  if (!selectedItemForArchive.value) return
-  archiveLoading.value = true
-  archiveError.value = ''
-  const willArchive = !selectedItemForArchive.value.isArchived
-
-  try {
-    await $fetch(`/api/items/${selectedItemForArchive.value.id}/archive`, {
-      method: 'PATCH',
-      body: { isArchived: willArchive }
-    })
-    isArchiveModalOpen.value = false
-    selectedItemForArchive.value = null
-    await refresh()
-  } catch (err: any) {
-    archiveError.value = err.data?.statusMessage || err.message || 'Erreur lors de l’opération'
-  } finally {
-    archiveLoading.value = false
-  }
 }
 </script>
 
@@ -301,216 +174,30 @@ const confirmArchive = async () => {
       </template>
     </AppDataTable>
 
-    <!-- Modale Création Nouvel Article (AppModal) -->
-    <AppModal
+    <!-- Modale Création Nouvel Article -->
+    <ArticleFormModal
       v-model="isNewItemModalOpen"
-      title="Créer un nouvel article de référence"
-      description="Ce barème servira à évaluer automatiquement les demandes d'achat"
-      icon="i-lucide-package-plus"
-      confirm-label="Enregistrer l'article"
-      :confirm-loading="modalLoading"
-      @confirm="submitNewItem"
-    >
-      <div v-if="modalError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ modalError }}
-      </div>
+      @saved="refresh"
+    />
 
-      <div class="space-y-3">
-        <AppInput
-          v-model="newItemForm.name"
-          label="Désignation de l'article"
-          placeholder="Ex: Ciment CPJ 35 (Sac 50kg)"
-          :error="newItemErrors.name"
-          required
-        />
-
-        <div class="grid grid-cols-2 gap-3">
-          <AppInput
-            v-model="newItemForm.unit"
-            label="Unité de mesure"
-            placeholder="Ex: Sac, Barre, Litre, Camion"
-            :error="newItemErrors.unit"
-            required
-          />
-
-          <AppInput
-            v-model.number="newItemForm.tolerancePercent"
-            type="number"
-            label="Tolérance admise (%)"
-            min="0"
-            max="100"
-            :error="newItemErrors.tolerancePercent"
-            help="Écart toléré avant alerte"
-          />
-        </div>
-
-        <AppInput
-          v-model.number="newItemForm.referencePrice"
-          type="number"
-          label="Prix de référence initial (FCFA)"
-          placeholder="Ex: 5000"
-          :error="newItemErrors.referencePrice"
-          min="1"
-          required
-        />
-
-        <AppInput
-          v-model="newItemForm.notes"
-          label="Remarques éventuelles"
-          placeholder="Fournisseur recommandé, spécifications qualité..."
-        />
-      </div>
-    </AppModal>
-
-    <!-- Modale Nouveau Prix (AppModal) -->
-    <AppModal
+    <!-- Modale Nouveau Prix -->
+    <ArticlePriceModal
       v-model="isNewPriceModalOpen"
-      title="Mettre à jour le tarif de référence"
-      :description="`Article : ${selectedItemForPrice?.name} (actuel : ${formatFCFA(selectedItemForPrice?.referencePrice)})`"
-      icon="i-lucide-trending-up"
-      confirm-label="Valider le nouveau tarif"
-      :confirm-loading="modalLoading"
-      @confirm="submitNewPrice"
-    >
-      <div v-if="modalError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ modalError }}
-      </div>
+      :item="selectedItemForPrice"
+      @saved="refresh"
+    />
 
-      <div class="space-y-3">
-        <p class="text-xs text-slate-500">
-          L'ancien tarif sera archivé dans l'historique et le nouveau tarif prendra effet immédiatement pour tous les futurs engagements.
-        </p>
-
-        <AppInput
-          v-model.number="newPriceForm.referencePrice"
-          type="number"
-          label="Nouveau prix de référence (FCFA)"
-          :error="newPriceErrors.referencePrice"
-          min="1"
-          required
-        />
-
-        <AppInput
-          v-model.number="newPriceForm.tolerancePercent"
-          type="number"
-          label="Tolérance admise (%)"
-          :error="newPriceErrors.tolerancePercent"
-          min="0"
-          max="100"
-        />
-
-        <AppInput
-          v-model="newPriceForm.notes"
-          label="Motif du changement de prix"
-          placeholder="Ex: Hausse des prix usine, nouveau transporteur..."
-        />
-      </div>
-    </AppModal>
-
-    <!-- Modale Historique des Prix (AppModal) -->
-    <AppModal
+    <!-- Modale Historique des Prix -->
+    <ArticleHistoryModal
       v-model="isPriceHistoryModalOpen"
-      :title="`Historique des prix — ${selectedItemForHistory?.name}`"
-      icon="i-lucide-history"
-      hide-confirm
-      cancel-label="Fermer"
-    >
-      <div v-if="priceHistory.length > 0" class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
-          <thead class="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase">
-            <tr>
-              <th class="py-2 px-3">Date Début</th>
-              <th class="py-2 px-3">Date Fin</th>
-              <th class="py-2 px-3 text-right">Prix (FCFA)</th>
-              <th class="py-2 px-3 text-center">Tolérance</th>
-              <th class="py-2 px-3">Motif</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-            <tr v-for="p in priceHistory" :key="p.id">
-              <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300">
-                {{ new Date(p.startDate).toLocaleDateString('fr-FR') }}
-              </td>
-              <td class="py-2.5 px-3">
-                <AppBadge
-                  v-if="!p.endDate"
-                  label="Tarif Actif"
-                  color="success"
-                  size="xs"
-                />
-                <span v-else class="text-slate-500">
-                  {{ new Date(p.endDate).toLocaleDateString('fr-FR') }}
-                </span>
-              </td>
-              <td class="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
-                {{ formatFCFA(p.referencePrice) }}
-              </td>
-              <td class="py-2.5 px-3 text-center">
-                ±{{ p.tolerancePercent }}%
-              </td>
-              <td class="py-2.5 px-3 text-slate-500 truncate max-w-xs">
-                {{ p.notes || '-' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      :item="selectedItemForHistory"
+    />
 
-      <div v-else class="py-6 text-center text-slate-500 text-xs">
-        Chargement de l'historique...
-      </div>
-    </AppModal>
-
-    <!-- Modale de Confirmation d'Archivage / Restauration (AppModal) -->
-    <AppModal
+    <!-- Modale Confirmation Archivage / Restauration -->
+    <ArticleArchiveModal
       v-model="isArchiveModalOpen"
-      :title="selectedItemForArchive?.isArchived ? 'Restaurer l\'article' : 'Archiver l\'article'"
-      :description="selectedItemForArchive?.isArchived
-        ? 'L\'article sera réactivé et redeviendra disponible pour les nouvelles demandes d\'achat.'
-        : 'L\'article sera archivé et ne sera plus proposé lors des nouvelles demandes d\'achat.'"
-      :icon="selectedItemForArchive?.isArchived ? 'i-lucide-rotate-ccw' : 'i-lucide-archive'"
-      :confirm-label="selectedItemForArchive?.isArchived ? 'Restaurer l\'article' : 'Archiver l\'article'"
-      :confirm-color="selectedItemForArchive?.isArchived ? 'primary' : 'error'"
-      :confirm-loading="archiveLoading"
-      cancel-label="Annuler"
-      @confirm="confirmArchive"
-    >
-      <div v-if="archiveError" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-        {{ archiveError }}
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Désignation de l'article :</span>
-            <span class="font-bold text-slate-900 dark:text-white whitespace-nowrap">
-              {{ selectedItemForArchive?.name }}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Unité :</span>
-            <span class="font-medium text-slate-800 dark:text-slate-200">
-              {{ selectedItemForArchive?.unit }}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500">Prix de référence actuel :</span>
-            <span class="font-bold text-emerald-600 dark:text-emerald-400">
-              {{ formatFCFA(selectedItemForArchive?.referencePrice || 0) }}
-            </span>
-          </div>
-        </div>
-
-        <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-          <template v-if="selectedItemForArchive?.isArchived">
-            Êtes-vous sûr de vouloir réactiver l'article <strong class="text-slate-900 dark:text-white whitespace-nowrap">« {{ selectedItemForArchive?.name }} »</strong> ?
-          </template>
-          <template v-else>
-            Êtes-vous sûr de vouloir archiver l'article <strong class="text-slate-900 dark:text-white whitespace-nowrap">« {{ selectedItemForArchive?.name }} »</strong> ?
-            Les engagements passés utilisant cet article conserveront leur historique intact.
-          </template>
-        </p>
-      </div>
-    </AppModal>
+      :item="selectedItemForArchive"
+      @archived="refresh"
+    />
   </div>
 </template>

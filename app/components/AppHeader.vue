@@ -13,14 +13,14 @@ const { user, roleLabel, roleBadgeColor, isPatron, isSecretaire } = useAuth()
     <!-- GAUCHE : Bouton Mobile Hamburger ou Badges Bureau -->
     <div class="flex items-center gap-3">
       <!-- Bouton menu mobile -->
-      <button
-        type="button"
-        class="lg:hidden h-7 w-7 inline-flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+      <AppButton
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-menu"
+        class="lg:hidden"
         aria-label="Ouvrir le menu de navigation"
         @click="emit('toggle-sidebar')"
-      >
-        <UIcon name="i-lucide-menu" class="w-5 h-5" />
-      </button>
+      />
 
       <!-- Titre Mobile -->
       <div class="lg:hidden flex items-center gap-2">

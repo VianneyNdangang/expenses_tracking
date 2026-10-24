@@ -81,14 +81,13 @@ const handleConfirm = () => {
             </div>
           </slot>
 
-          <button
-            type="button"
-            class="h-7 w-7 inline-flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors cursor-pointer"
+          <AppButton
+            variant="ghost"
+            size="xs"
+            icon="i-lucide-x"
             aria-label="Fermer"
             @click="handleCancel"
-          >
-            <UIcon name="i-lucide-x" class="w-5 h-5" />
-          </button>
+          />
         </div>
 
         <!-- Corps de la modale -->
