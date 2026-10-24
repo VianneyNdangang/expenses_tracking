@@ -120,6 +120,12 @@ La commande `npm run db:migrate` crée le compte initial avec l'identifiant `pat
 
 En production, configurez `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SESSION_SECRET` et `FIELD_ENCRYPTION_KEY` dans le gestionnaire de secrets de l'hébergeur. Après `npm ci` et `npm run build`, démarrez l'application avec `npm run start`. N'utilisez pas les valeurs d'exemple pour les secrets.
 
+## Référencement (SEO)
+
+La page de connexion est la seule page publique destinée à l'indexation. Les pages de gestion restent exclues des résultats de recherche. Les fichiers `public/robots.txt` et `public/sitemap.xml` déclarent cette règle et le sitemap à `https://controledepenses.grandluixdepense.com`.
+
+Après chaque déploiement, vérifiez que `/robots.txt` et `/sitemap.xml` répondent directement avec leur contenu (sans redirection vers `/login`), puis ajoutez `https://controledepenses.grandluixdepense.com/sitemap.xml` dans Google Search Console et demandez l'indexation de `/login`. L'indexation dépend ensuite du crawl de Google et peut prendre plusieurs jours ou semaines ; une page de connexion seule aura une visibilité limitée pour les recherches génériques.
+
 ---
 
 ## 🧪 Tests Automatisés

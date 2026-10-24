@@ -4,6 +4,16 @@ import { LoginSchema, validateForm } from '~~/shared/schemas'
 const { login } = useAuth()
 const router = useRouter()
 
+useSeoMeta({
+  title: 'Gestion des dépenses et engagements',
+  description: 'Espace de connexion sécurisé pour suivre les dépenses, les engagements et les justificatifs de votre entreprise.',
+  ogTitle: 'Gestion des dépenses et engagements',
+  ogDescription: 'Suivez les dépenses, les engagements et les justificatifs de votre entreprise depuis un espace sécurisé.',
+  ogType: 'website',
+  ogUrl: 'https://controledepenses.grandluixdepense.com/login',
+  twitterCard: 'summary'
+})
+
 const form = reactive({
   username: 'patron',
   password: ''
